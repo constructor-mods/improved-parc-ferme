@@ -33,8 +33,6 @@ using namespace improved_parc_ferme;
 
 namespace {
 
-constexpr uint32_t kOnTrack = 1;
-
 std::set<int> g_sent_to_pit_box;
 
 // The session's car number for a car, or -1 if it isn't on the live car list.
@@ -97,6 +95,10 @@ void frame(double, void *)
         }
     }
     if (!to_pit_box.empty()) {
+        {
+            std::lock_guard<std::mutex> lock(g_mutex);
+            g_stop_to_take_back.insert(to_pit_box.begin(), to_pit_box.end());
+        }
         send_to_pit_box(to_pit_box);
         if (hud::available()) {
             hud::toast("Pit lane start", "Parc ferme: setup changed after qualifying", 5, "generic");
@@ -131,6 +133,9 @@ SWOFTY_WRAP(Game_Pitlane_SetVehicleStatus, void, void *self, uint8_t vehicle, ui
     std::lock_guard<std::mutex> lock(g_mutex);
     if (g_phase == Phase::qualifying) {
         close_parc_ferme(int(vehicle));
+    }
+    if (g_stop_to_take_back.erase(int(vehicle))) {
+        take_back_stop(self, int(vehicle));
     }
 }
 

@@ -5,6 +5,7 @@ Parc fermé the way it works in real F1. Got your setup wrong in qualifying? You
 - After that the **rear wing**, **suspension geometry**, **suspension**, **brake pressure** and **ballast** are locked by the rules.
 - The setup screen doesn't grey them out any more. Change one and a message tells you which rows you changed.
 - At the race start your car goes to its pit box instead of the grid, and you join the race from the end of the pit lane.
+- The pit lane start doesn't count as your pit stop.
 
 ### Still free
 - Front wing, differential, brake bias, tyre pressures and fuel, like the real rule.

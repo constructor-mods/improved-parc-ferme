@@ -6,6 +6,36 @@
 
 namespace improved_parc_ferme {
 
+// Which way a car faces, in its matrix.
+constexpr size_t kForwardX = 8;
+constexpr size_t kForwardZ = 10;
+// The pit exit points against the grid: it is from the same track driven the other way.
+constexpr float kOtherWay = -0.5f;
+
+// True when the known pit exit points the way the cars on the grid face. A reverse layout has the same length as the
+// normal one, so its pit exit can't be told apart by the track alone. Never called while holding a lock.
+inline bool pit_exit_fits_the_grid()
+{
+    std::lock_guard<std::mutex> lock(g_exit_mutex);
+    if (!g_pit_exit) {
+        return false;
+    }
+    float along = 0;
+    int counted = 0;
+    for (const swofty::cars::live::Car &live : swofty::cars::live::cars()) {
+        float *matrix = car_matrix(reinterpret_cast<uintptr_t>(live.handle()));
+        if (!matrix) {
+            continue;
+        }
+        along += matrix[kForwardX] * g_pit_exit->direction_x + matrix[kForwardZ] * g_pit_exit->direction_z;
+        counted++;
+    }
+    if (counted == 0) {
+        return true;
+    }
+    return along / float(counted) > kOtherWay;
+}
+
 // Never called while holding a lock: the teleport calls into the game.
 inline void put_on_spot(uintptr_t handle, const Matrix &spot)
 {

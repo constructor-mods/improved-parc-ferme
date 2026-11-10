@@ -7,6 +7,7 @@
 #include <swofty/mixin.hpp>
 
 #include "pit_crew.hpp"
+#include "race_hud.hpp"
 
 #include <atomic>
 #include <chrono>
@@ -42,6 +43,8 @@ inline void send_to_garage(void *pit_lane, const std::vector<int> &cars)
     bool known = std::memcmp(call, kTeleportToGarageStart, sizeof kTeleportToGarageStart) == 0;
     for (int car : cars) {
         swofty::log("[improved-parc-ferme] car %d starts from the pit lane: to its garage", car);
+        // The race is on: the HUD stays until the end of the race, also in the garage.
+        hud_stays_in_garage(true);
         if (known) {
             reinterpret_cast<TeleportToGarage>(call)(pit_lane, uint8_t(car));
             crews_stay_hidden(true);

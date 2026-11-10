@@ -41,6 +41,8 @@ inline std::map<SetupKey, Values> g_last_applied;
 inline std::map<SetupKey, Values> g_parc_ferme;
 inline std::set<int> g_in_parc_ferme;
 inline std::set<int> g_pit_lane_start;
+// The track the parc ferme above is from.
+inline std::string g_parc_ferme_track;
 inline std::vector<Message> g_messages;
 // Set when a car broke parc ferme and it should be saved.
 inline bool g_parc_ferme_changed = false;

@@ -26,5 +26,6 @@
         "dll": "native/improved_parc_ferme.dll"
       }
     ]
-  }
+  },
+  "icon": "icons/improved-parc-ferme.png"
 }

@@ -4,8 +4,7 @@ Parc fermé the way it works in real F1. Got your setup wrong in qualifying? You
 - Parc fermé starts the moment you first leave the pits in **qualifying**.
 - After that the **rear wing**, **suspension geometry**, **suspension**, **brake pressure** and **ballast** are locked by the rules.
 - The setup screen doesn't grey them out any more. Change one and a message tells you which rows you changed.
-- At the race start your car waits at the **end of the pit lane** instead of on the grid. Once the whole field has passed the pit exit, you're free to go.
-- The end of the pit lane is learned per track the first time a car drives out of the pits there, and kept. On a track it doesn't know yet, you start from your garage and drive out once the field has gone by.
+- At the race start your car waits in its **garage** instead of on the grid. Once the field has passed the pit exit, you drive out and join the race from the pit lane.
 - The pit lane start doesn't count as your pit stop.
 
 ### Still free
@@ -14,11 +13,12 @@ Parc fermé the way it works in real F1. Got your setup wrong in qualifying? You
 ### Restarts
 - Restart qualifying and parc fermé starts over.
 - Restart the race and the pit lane start stays.
-- Quit the game between qualifying and the race and parc fermé is still there when you come back.
+- Quit the game between qualifying and the race, or quit the race and load it again, and parc fermé is still there.
 
 ### Needs
 - Swofty Launcher 1.8.10 or newer.
 - A Grand Prix with qualifying on (Weekend Structure → Qualifying Format).
+- Parc Fermé Rules on (Rules & Flags, on by default). With them off the addon does nothing.
 - Offline sessions only, like all modded play.
 
 ### Credits

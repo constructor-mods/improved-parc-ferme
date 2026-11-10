@@ -17,6 +17,7 @@
 #include "pit_exit_hold.hpp"
 #include "pit_start.hpp"
 #include "race_hud.hpp"
+#include "rules_setting.hpp"
 #include "sessions.hpp"
 #include "setup_rows.hpp"
 #include "unlock.hpp"
@@ -57,18 +58,30 @@ int car_number(uintptr_t car)
 }
 
 uint32_t g_session = 0;
+// The session ended and no new one has been followed since.
+bool g_session_ended = false;
+// The game's Parc Ferme Rules setting for the session.
+bool g_rules_on = true;
 
 // A new session: qualifying (or a sprint shootout) starts parc ferme over, a race checks it until the start,
 // practice forgets it.
-void follow_session()
+void follow_session(uint32_t session, bool rules_on)
 {
-    uint32_t session = session_number();
     if (session == g_session || session == 0) {
         return;
     }
     g_session = session;
+    g_session_ended = false;
     g_pit_lane = nullptr;
     SessionKind kind = kind_of(session);
+    // Parc Ferme Rules off in the game's settings: no parc ferme this session.
+    if (!rules_on && kind != SessionKind::practice) {
+        g_phase = Phase::other;
+        g_pit_lane_start.clear();
+        g_take_setup_now = false;
+        log("[improved-parc-ferme] session %u: Parc Ferme Rules are off, nothing to do", session);
+        return;
+    }
     if (kind == SessionKind::qualifying) {
         g_phase = Phase::qualifying;
         start_qualifying();
@@ -95,10 +108,26 @@ void frame(double, void *)
     void *pit_lane = g_pit_lane;
     bool racing = false;
     bool waiting_in_garage = false;
-    bool exit_known = pit_exit_known();
+    // Off for now: the car can't be held still at the pit exit yet, so every pit lane start is from the garage.
+    constexpr bool kStartAtPitExit = false;
+    bool exit_known = kStartAtPitExit && pit_exit_known();
+    bool exit_fits = false;
+    if (exit_known) {
+        exit_fits = pit_exit_fits_the_grid();
+    }
+    // The game's Parc Ferme Rules setting, read once per session (a game call: outside the lock).
+    static uint32_t rules_session = 0;
+    uint32_t session = session_number();
+    if (session != rules_session && session != 0) {
+        rules_session = session;
+        bool rules_on = parc_ferme_rules_on();
+        std::lock_guard<std::mutex> lock(g_mutex);
+        g_rules_on = rules_on;
+        log("[improved-parc-ferme] session %u: Parc Ferme Rules %s", session, rules_on ? "on" : "off");
+    }
     {
         std::lock_guard<std::mutex> lock(g_mutex);
-        follow_session();
+        follow_session(session, g_rules_on);
         if (g_parc_ferme_changed) {
             save_parc_ferme();
         }
@@ -111,10 +140,13 @@ void frame(double, void *)
                     continue;
                 }
                 // The end of the pit lane when we know where it is on this track, else the garage.
-                if (exit_known && g_at_pit_exit.empty()) {
+                if (exit_known && exit_fits && g_at_pit_exit.empty()) {
                     g_at_pit_exit.insert(car);
                     to_pit_exit.push_back(car);
                 } else {
+                    if (exit_known && !exit_fits) {
+                        log("[improved-parc-ferme] the known pit exit points against the grid: garage start");
+                    }
                     g_in_garage[car] = now;
                     to_garage.push_back(car);
                 }
@@ -134,7 +166,7 @@ void frame(double, void *)
     }
     // Outside the lock: all of these call into the game.
     // Every session, the race too: a car driving out of the pits shows where the end of the pit lane is.
-    learn_pit_exit();
+    learn_pit_exit(pit_lane);
     for (const Message &message : messages) {
         if (hud::available()) {
             hud::toast(message.text, message.detail, 5, "generic");
@@ -214,7 +246,17 @@ SWOFTY_REGISTER
         at_track(name);
         std::lock_guard<std::mutex> lock(g_mutex);
         g_weekend_track = name;
+        // The session ended and this one has the same number (the race loaded again): follow it again.
+        if (g_session_ended) {
+            uint32_t again = g_session;
+            g_session = 0;
+            follow_session(again, g_rules_on);
+        }
         if (g_phase == Phase::before_start) {
+            // Parc ferme from another track's weekend doesn't count here.
+            if (g_parc_ferme_track != name) {
+                start_qualifying();
+            }
             load_parc_ferme();
         }
     });
@@ -237,20 +279,21 @@ SWOFTY_REGISTER
         g_driven_out.clear();
         g_at_pit_exit.clear();
         crews_stay_hidden(false);
+        hud_stays_in_garage(false);
     });
     events::on("session.end").after([](std::span<const std::byte>, const events::Context &) {
         std::lock_guard<std::mutex> lock(g_mutex);
         if (g_phase == Phase::qualifying) {
             close_all();
+            g_parc_ferme_track = g_weekend_track;
             save_parc_ferme();
         }
-        if (g_phase == Phase::racing) {
-            g_pit_lane_start.clear();
-            forget_saved_parc_ferme();
-        }
+        // Quitting the race keeps parc ferme and the pit lane starts: loading the weekend again gives the same race.
+        g_session_ended = true;
         g_phase = Phase::other;
         g_take_setup_now = false;
         crews_stay_hidden(false);
+        hud_stays_in_garage(false);
     });
 }
 

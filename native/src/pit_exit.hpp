@@ -61,12 +61,15 @@ struct PitExit {
 } // namespace improved_parc_ferme
 
 #include "pit_exit_store.hpp"
+#include "pit_exit_table.hpp"
+#include "pit_limit.hpp"
 
 namespace improved_parc_ferme {
 
 struct Sample {
     ExitClock::time_point when;
     Matrix matrix{};
+    SpeedLimit limit = SpeedLimit::unknown;
 };
 
 // The car waiting at the pit exit.
@@ -82,6 +85,8 @@ inline std::map<int, uint32_t> g_pit_status;
 inline std::map<int, std::deque<Sample>> g_pit_lane_path;
 inline std::vector<int> g_just_exited;
 inline std::optional<PitExit> g_pit_exit;
+// The pit exit came from the addon's list, not from a car on this PC.
+inline bool g_pit_exit_built_in = false;
 inline std::optional<Held> g_held;
 inline std::string g_track;
 
@@ -132,21 +137,24 @@ inline float distance_flat(const float *matrix, float x, float z)
     return std::sqrt(dx * dx + dz * dz);
 }
 
-// The pit exit from a car's drive down the pit lane. The game marks a car back on track at different places (later
-// when the player drives), so the exit is where the car leaves the pit lane speed limit: it drives at a steady speed
-// down the pit lane, then speeds up. The car waits a few seconds' drive before that.
-inline std::optional<PitExit> pit_exit_from_path(const std::deque<Sample> &path)
+// Where the car left the game's speed limit zone: its last point inside it. None when the game didn't say.
+inline std::optional<size_t> exit_from_limit_zone(const std::vector<const Sample *> &points)
 {
-    // A point every quarter of a second, and the speed between them.
-    std::vector<const Sample *> points;
-    for (const Sample &sample : path) {
-        if (points.empty() || sample.when - points.back()->when >= std::chrono::milliseconds(250)) {
-            points.push_back(&sample);
+    std::optional<size_t> last_inside;
+    for (size_t i = 0; i < points.size(); i++) {
+        if (points[i]->limit == SpeedLimit::inside) {
+            last_inside = i;
         }
     }
-    if (points.size() < 12) {
+    if (!last_inside || *last_inside + 1 >= points.size()) {
         return std::nullopt;
     }
+    return last_inside;
+}
+
+// Where the car left the speed limit, from its speed: it drives at a steady speed down the pit lane, then speeds up.
+inline std::optional<size_t> exit_from_speed(const std::vector<const Sample *> &points)
+{
     std::vector<float> speeds(points.size(), 0.0f);
     for (size_t i = 1; i < points.size(); i++) {
         float seconds = std::chrono::duration<float>(points[i]->when - points[i - 1]->when).count();
@@ -162,13 +170,17 @@ inline std::optional<PitExit> pit_exit_from_path(const std::deque<Sample> &path)
         return std::nullopt;
     }
     // The exit: the first point after the middle where the car is clearly faster than the pit lane speed.
-    size_t exit_index = points.size() - 1;
     for (size_t i = points.size() / 2; i < points.size(); i++) {
         if (speeds[i] > pit_lane_speed * 1.2f) {
-            exit_index = i - 1;
-            break;
+            return i - 1;
         }
     }
+    return points.size() - 1;
+}
+
+// The pit exit at one point of the drive, with the spot a few seconds' drive before it to wait at.
+inline std::optional<PitExit> pit_exit_at(const std::vector<const Sample *> &points, size_t exit_index)
+{
     // Where it waits: a few seconds before the exit.
     size_t spot_index = 0;
     for (size_t i = 0; i < exit_index; i++) {
@@ -193,83 +205,35 @@ inline std::optional<PitExit> pit_exit_from_path(const std::deque<Sample> &path)
     return exit;
 }
 
-// A car's pit status changed (from the game's own pit status hook). No game calls in here.
-inline void pit_status_changed(int car, uint32_t status)
+// The pit exit from a car's drive down the pit lane. The game marks a car back on track at different places (later
+// when the player drives), so the exit is where the car leaves the pit lane speed limit.
+inline std::optional<PitExit> pit_exit_from_path(const std::deque<Sample> &path)
 {
-    std::lock_guard<std::mutex> lock(g_exit_mutex);
-    uint32_t before = g_pit_status[car];
-    g_pit_status[car] = status;
-    if (status == kBackOnTrack && before == kLeavingPitLane) {
-        g_just_exited.push_back(car);
-    } else if (status != kLeavingPitLane) {
-        g_pit_lane_path.erase(car);
-    }
-}
-
-// In practice and qualifying, every frame: follows the cars driving down the pit lane and keeps where the end of the
-// pit lane is.
-inline void learn_pit_exit()
-{
-    std::lock_guard<std::mutex> lock(g_exit_mutex);
-    auto now = ExitClock::now();
-    for (const auto &[car, status] : g_pit_status) {
-        if (status != kLeavingPitLane) {
-            continue;
-        }
-        float *matrix = car_matrix(car_handle(car));
-        if (!matrix) {
-            continue;
-        }
-        std::deque<Sample> &path = g_pit_lane_path[car];
-        path.push_back({now, copy_of(matrix)});
-        if (path.size() > kMostSamples) {
-            path.pop_front();
+    // A point every quarter of a second.
+    std::vector<const Sample *> points;
+    for (const Sample &sample : path) {
+        if (points.empty() || sample.when - points.back()->when >= std::chrono::milliseconds(250)) {
+            points.push_back(&sample);
         }
     }
-    for (int car : g_just_exited) {
-        auto path = g_pit_lane_path.find(car);
-        float *matrix = car_matrix(car_handle(car));
-        if (path == g_pit_lane_path.end() || path->second.empty() || !matrix) {
-            continue;
+    if (points.size() < 12) {
+        return std::nullopt;
+    }
+    // The game's own speed limit zone when it says, else (or when that gives no good spot) the car's speed.
+    std::optional<PitExit> exit;
+    std::optional<size_t> found = exit_from_limit_zone(points);
+    if (found) {
+        exit = pit_exit_at(points, *found);
+    }
+    if (!exit) {
+        found = exit_from_speed(points);
+        if (found) {
+            exit = pit_exit_at(points, *found);
         }
-        std::optional<PitExit> exit = pit_exit_from_path(path->second);
-        g_pit_lane_path.erase(path);
-        if (!exit || g_pit_exit) {
-            continue;
-        }
-        swofty::log("[improved-parc-ferme] pit exit found on %s: wait at %.1f %.1f %.1f, exit at %.1f %.1f",
-                    g_track.c_str(), exit->spot[kPositionX], exit->spot[kPositionY], exit->spot[kPositionZ],
-                    exit->exit_x, exit->exit_z);
-        save_pit_exit(g_track, *exit);
-        g_pit_exit = exit;
     }
-    g_just_exited.clear();
-}
-
-// A session starts on a track: its pit exit, if a car has driven out of the pits there before.
-inline void at_track(const std::string &track)
-{
-    std::lock_guard<std::mutex> lock(g_exit_mutex);
-    g_pit_lane_path.clear();
-    g_pit_status.clear();
-    g_just_exited.clear();
-    g_held.reset();
-    if (track == g_track && g_pit_exit) {
-        return;
-    }
-    g_track = track;
-    g_pit_exit.reset();
-    PitExit exit;
-    if (!track.empty() && load_pit_exit(track, exit)) {
-        g_pit_exit = exit;
-        swofty::log("[improved-parc-ferme] pit exit of %s known from an earlier visit", track.c_str());
-    }
-}
-
-inline bool pit_exit_known()
-{
-    std::lock_guard<std::mutex> lock(g_exit_mutex);
-    return g_pit_exit.has_value();
+    return exit;
 }
 
 } // namespace improved_parc_ferme
+
+#include "pit_exit_learn.hpp"

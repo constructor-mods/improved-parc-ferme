@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: MIT
 // Quitting the game between qualifying and the race doesn't get you out of parc ferme. The addon keeps which track
 // had its qualifying and who already broke parc ferme. Back in the race, the setup each car has then becomes its parc
-// ferme setup. One weekend at a time: practice or a new qualifying starts it over.
+// ferme setup. Quitting the race keeps it too, so loading the weekend again gives the same race. One weekend at a
+// time: practice, a new qualifying or a race at another track starts it over.
 #pragma once
 #include "parc_ferme.hpp"
 
@@ -51,7 +52,12 @@ inline void load_parc_ferme()
     std::istringstream input(text);
     std::string word;
     std::string track;
-    if (!(input >> word >> track) || word != "track" || track != g_weekend_track) {
+    if (!(input >> word >> track) || word != "track") {
+        return;
+    }
+    // A race at another track: that weekend is over.
+    if (track != g_weekend_track) {
+        forget_saved_parc_ferme();
         return;
     }
     int car = -1;
@@ -62,6 +68,7 @@ inline void load_parc_ferme()
     }
     // The setups already applied in this race are the ones the cars had when the game was closed.
     g_parc_ferme = g_last_applied;
+    g_parc_ferme_track = track;
     g_take_setup_now = true;
     log("[improved-parc-ferme] qualifying at %s was before the game was closed: parc ferme goes on, %zu pit lane "
         "starts",

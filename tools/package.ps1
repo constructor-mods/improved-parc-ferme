@@ -3,7 +3,7 @@
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $manifest = Get-Content (Join-Path $root 'swofty.json') -Raw | ConvertFrom-Json
-$files = @('swofty.json', 'README.md', 'LICENSE', 'CHANGELOG.md', 'native/improved_parc_ferme.dll')
+$files = @('swofty.json', 'README.md', 'LICENSE', 'CHANGELOG.md', 'icons/improved-parc-ferme.png', 'native/improved_parc_ferme.dll')
 foreach ($f in $files) {
     if (-not (Test-Path (Join-Path $root $f))) { throw "missing $f" }
 }

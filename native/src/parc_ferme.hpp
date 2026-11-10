@@ -42,6 +42,10 @@ inline std::map<SetupKey, Values> g_parc_ferme;
 inline std::set<int> g_in_parc_ferme;
 inline std::set<int> g_pit_lane_start;
 inline std::vector<Message> g_messages;
+// Set when a car broke parc ferme and it should be saved.
+inline bool g_parc_ferme_changed = false;
+// Back in a race after the game was closed since qualifying: the setup each car has now is its parc ferme setup.
+inline bool g_take_setup_now = false;
 
 // A new qualifying: every car is out of parc ferme until it leaves the pits.
 inline void start_qualifying()
@@ -49,6 +53,7 @@ inline void start_qualifying()
     g_parc_ferme.clear();
     g_in_parc_ferme.clear();
     g_pit_lane_start.clear();
+    g_take_setup_now = false;
 }
 
 // The car's setup goes into parc ferme as it is now.
@@ -92,6 +97,10 @@ inline void setup_applied(int car, Block block, const Values &values)
 {
     SetupKey key{car, block};
     g_last_applied[key] = values;
+    if (g_take_setup_now && !g_parc_ferme.count(key)) {
+        g_parc_ferme[key] = values;
+        return;
+    }
     if (!checking() || g_pit_lane_start.count(car)) {
         return;
     }
@@ -104,6 +113,7 @@ inline void setup_applied(int car, Block block, const Values &values)
         return;
     }
     g_pit_lane_start.insert(car);
+    g_parc_ferme_changed = true;
     log("[improved-parc-ferme] car %d broke parc ferme (%s): pit lane start", car, rows.c_str());
     g_messages.push_back({"Parc ferme broken", "Changed " + rows + ": you start from the pit lane"});
 }

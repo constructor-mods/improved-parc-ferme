@@ -44,6 +44,7 @@ inline void send_to_garage(void *pit_lane, const std::vector<int> &cars)
         swofty::log("[improved-parc-ferme] car %d starts from the pit lane: to its garage", car);
         if (known) {
             reinterpret_cast<TeleportToGarage>(call)(pit_lane, uint8_t(car));
+            crews_stay_hidden(true);
             hide_crew(car);
         } else {
             // Unknown game build: the car still goes to its garage.
@@ -62,6 +63,7 @@ inline void drive_out(void *pit_lane, const std::vector<int> &cars)
     }
     for (int car : cars) {
         swofty::log("[improved-parc-ferme] car %d drives out of its garage", car);
+        crews_stay_hidden(false);
         show_crew(car);
         reinterpret_cast<WantsToLeaveGarage>(call)(pit_lane, uint8_t(car), 0);
     }

@@ -6,6 +6,9 @@
 #include <swofty/mem.hpp>
 #include <swofty/mixin.hpp>
 
+#include <windows.h>
+
+#include <atomic>
 #include <cstdint>
 #include <cstring>
 
@@ -82,26 +85,39 @@ inline void hide_crew(int car)
     swofty::log("[improved-parc-ferme] car %d: pit crew hidden", car);
 }
 
-constexpr uintptr_t kCrewHidden = 0x450;
+// The game's "show every pit crew", which it calls every frame a car is near the pit lane (a jump on this game
+// build). While a car waits in its garage it returns at once, so the hidden crew stays hidden.
+constexpr uintptr_t kShowAllCrews = 0x3c0590;
+constexpr uint8_t kShowAllCrewsStart[] = {0xe9, 0x3b, 0x81, 0xa0, 0x07};
+constexpr uint8_t kReturn = 0xc3;
 
-// Hides the crew again if the game showed it, quietly, every frame while the car waits. Logs once, a few seconds
-// in, whether the crew is still hidden.
-inline void keep_crew_hidden(int car)
+inline std::atomic<bool> g_crews_stay_hidden{false};
+
+inline void crews_stay_hidden(bool stay)
 {
-    static int frames = 0;
-    void *crew = crew_of(car);
-    if (!crew) {
+    if (g_crews_stay_hidden.exchange(stay) == stay) {
         return;
     }
-    uint8_t hidden = 0;
-    swofty::mem::read(reinterpret_cast<uintptr_t>(crew) + kCrewHidden, hidden);
-    frames++;
-    if (frames == 180) {
-        swofty::log("[improved-parc-ferme] car %d: pit crew hidden flag %u after %d frames", car, hidden, frames);
+    auto *code = reinterpret_cast<uint8_t *>(swofty::api->module_base() + kShowAllCrews);
+    uint8_t first = kShowAllCrewsStart[0];
+    if (stay) {
+        if (std::memcmp(code, kShowAllCrewsStart, sizeof kShowAllCrewsStart) != 0) {
+            swofty::log("[improved-parc-ferme] this game build is not supported: the pit crews stay");
+            g_crews_stay_hidden = false;
+            return;
+        }
+        first = kReturn;
+    } else if (code[0] != kReturn) {
+        return;
     }
-    if (!hidden) {
-        reinterpret_cast<HideCrew>(swofty::api->module_base() + kHideCrew)(crew, 1);
+    DWORD old_protect = 0;
+    if (!VirtualProtect(code, 1, PAGE_EXECUTE_READWRITE, &old_protect)) {
+        return;
     }
+    code[0] = first;
+    VirtualProtect(code, 1, old_protect, &old_protect);
+    FlushInstructionCache(GetCurrentProcess(), code, 1);
+    swofty::log("[improved-parc-ferme] pit crews %s", stay ? "stay hidden" : "shown by the game again");
 }
 
 // On the game thread only, never while holding g_mutex.

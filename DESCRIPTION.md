@@ -14,6 +14,7 @@ Parc fermé the way it works in real F1. Got your setup wrong in qualifying? You
 ### Restarts
 - Restart qualifying and parc fermé starts over.
 - Restart the race and the pit lane start stays.
+- Quit the game between qualifying and the race and parc fermé is still there when you come back.
 
 ### Needs
 - Swofty Launcher 1.8.10 or newer.

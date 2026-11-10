@@ -12,9 +12,11 @@
 #include <swofty/systems/cars.hpp>
 
 #include "parc_ferme.hpp"
+#include "parc_ferme_store.hpp"
 #include "pit_exit.hpp"
 #include "pit_exit_hold.hpp"
 #include "pit_start.hpp"
+#include "race_hud.hpp"
 #include "sessions.hpp"
 #include "setup_rows.hpp"
 #include "unlock.hpp"
@@ -70,11 +72,16 @@ void follow_session()
     if (kind == SessionKind::qualifying) {
         g_phase = Phase::qualifying;
         start_qualifying();
+        forget_saved_parc_ferme();
     } else if (kind == SessionKind::race) {
         g_phase = Phase::before_start;
+        load_parc_ferme();
     } else {
         g_phase = Phase::other;
         g_pit_lane_start.clear();
+        if (kind == SessionKind::practice) {
+            forget_saved_parc_ferme();
+        }
     }
     log("[improved-parc-ferme] session %u", session);
 }
@@ -85,13 +92,16 @@ void frame(double, void *)
     std::vector<int> to_garage;
     std::vector<int> to_pit_exit;
     std::vector<int> to_drive_out;
-    std::vector<int> still_waiting;
     void *pit_lane = g_pit_lane;
     bool racing = false;
+    bool waiting_in_garage = false;
     bool exit_known = pit_exit_known();
     {
         std::lock_guard<std::mutex> lock(g_mutex);
         follow_session();
+        if (g_parc_ferme_changed) {
+            save_parc_ferme();
+        }
         messages.swap(g_messages);
         racing = g_phase == Phase::racing;
         if (racing && pit_lane) {
@@ -117,7 +127,7 @@ void frame(double, void *)
                     g_driven_out.insert(car);
                     to_drive_out.push_back(car);
                 } else {
-                    still_waiting.push_back(car);
+                    waiting_in_garage = true;
                 }
             }
         }
@@ -132,6 +142,8 @@ void frame(double, void *)
     }
     for (int car : to_pit_exit) {
         start_at_pit_exit(car);
+        // In the pit lane, not stopped on the track: no yellow flag for the waiting car.
+        game::Game_Pitlane_SetVehicleStatus(pit_lane, uint8_t(car), kLeavingPitLane);
         if (hud::available()) {
             hud::toast("Pit lane start", "Parc ferme: wait at the pit exit until the field has passed", 5, "generic");
         }
@@ -145,9 +157,8 @@ void frame(double, void *)
             hud::toast("Pit lane start", "Parc ferme: setup changed after qualifying", 5, "generic");
         }
     }
-    // The game shows the pit crews again every frame a car is near the pit lane: hide them again while the car waits.
-    for (int car : still_waiting) {
-        keep_crew_hidden(car);
+    if (waiting_in_garage) {
+        keep_race_hud_on();
     }
     if (!to_drive_out.empty()) {
         drive_out(pit_lane, to_drive_out);
@@ -199,7 +210,13 @@ SWOFTY_REGISTER
         if (context.session()) {
             track = std::string(context.session()->track.id());
         }
-        at_track(track_name(track));
+        std::string name = track_name(track);
+        at_track(name);
+        std::lock_guard<std::mutex> lock(g_mutex);
+        g_weekend_track = name;
+        if (g_phase == Phase::before_start) {
+            load_parc_ferme();
+        }
     });
     // A restart in qualifying builds the cars again: parc ferme starts over.
     events::on("car.built").after([](std::span<const std::byte>, const events::Context &) {
@@ -219,16 +236,21 @@ SWOFTY_REGISTER
         g_in_garage.clear();
         g_driven_out.clear();
         g_at_pit_exit.clear();
+        crews_stay_hidden(false);
     });
     events::on("session.end").after([](std::span<const std::byte>, const events::Context &) {
         std::lock_guard<std::mutex> lock(g_mutex);
         if (g_phase == Phase::qualifying) {
             close_all();
+            save_parc_ferme();
         }
         if (g_phase == Phase::racing) {
             g_pit_lane_start.clear();
+            forget_saved_parc_ferme();
         }
         g_phase = Phase::other;
+        g_take_setup_now = false;
+        crews_stay_hidden(false);
     });
 }
 

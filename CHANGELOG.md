@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.1.2
+- Cheaper memory checks with Swofty Launcher 1.9.30 or newer (fewer small hitches).
+
 ## 0.1.1
 - Shows as tested on Steam in the launcher's Addon Browser, in the Utility category. Needs launcher 1.8.36 or newer.
 

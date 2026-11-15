@@ -297,7 +297,7 @@ SWOFTY_ON_LOAD
 {
     keep_rows_open();
     follow_start_system();
-    g_probe = [](void *, const StopPlan &plan) { probe_diff_at_lights_out(g_pit_lane.load(), plan.number); };
+    g_probe = [](void *start_system, const StopPlan &plan) { probe_waiting_car(start_system, plan, g_pit_lane.load()); };
     read_test_switch();
     events::on_frame(frame);
 }

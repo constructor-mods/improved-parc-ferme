@@ -297,6 +297,7 @@ SWOFTY_ON_LOAD
     keep_rows_open();
     follow_start_system();
     follow_lights_wait();
+    follow_start_lights();
     read_test_switch();
     events::on_frame(frame);
 }
@@ -349,6 +350,7 @@ SWOFTY_REGISTER
     // A restarted race fires race.start again, and the pit lane start is served again.
     events::on("race.start").after([](std::span<const std::byte>, const events::Context &) {
         stop_waiting();
+        new_lights();
         std::lock_guard<std::mutex> lock(g_mutex);
         g_phase = Phase::racing;
         g_race_started = Clock::now();

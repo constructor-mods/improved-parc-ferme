@@ -5,6 +5,7 @@
 #include "ai_start.hpp"
 #include "pit_exit.hpp"
 #include "pit_hold.hpp"
+#include "start_lights.hpp"
 
 namespace improved_parc_ferme {
 
@@ -72,6 +73,7 @@ inline void start_at_pit_exit(int car)
     swofty::log("[improved-parc-ferme] car %d starts from the pit lane: drives to the pit exit and waits", car);
     stop_car_at(plan);
     skip_lights_wait(car);
+    hold_lights();
 }
 
 // What the frame has to do for the waiting car.
@@ -147,6 +149,10 @@ inline HoldNews hold_at_pit_exit()
                     (unsigned long long)g_speed_writes.load());
     }
     if (!held.lights_out) {
+        if (g_standing.load() && g_lights_wait.load()) {
+            let_lights_go();
+            swofty::log("[improved-parc-ferme] car %d stands at the pit exit: the start lights may begin", held.car);
+        }
         bool out = lights_went_out(held, handles);
         if (!out && now - held.since > kLongestBeforeLightsOut) {
             out = true;
@@ -178,10 +184,22 @@ inline HoldNews hold_at_pit_exit()
     int counted = 0;
     int behind = 0;
     bool all_past = field_has_passed(held, handles, counted, behind);
-    if (all_past || waited > std::chrono::duration<double>(kLongestHold).count()) {
+    if (!all_past) {
+        held.field_past_seconds = -1;
+    } else if (held.field_past_seconds < 0) {
+        held.field_past_seconds = g_game_seconds.load();
+        swofty::log("[improved-parc-ferme] car %d: the field has passed the pit exit (%d cars, %.1f s after lights out)",
+                    held.car, counted, waited);
+    }
+    bool green = false;
+    if (all_past && g_standing.load()) {
+        green = g_game_seconds.load() - held.field_past_seconds >= kGreenAfter;
+    }
+    bool too_long = waited > std::chrono::duration<double>(kLongestHold).count();
+    if (green || too_long) {
         swofty::log("[improved-parc-ferme] car %d: pit exit open (%s, %d cars racing, %d behind, %.1f s after lights "
                     "out)",
-                    held.car, all_past ? "the field has passed" : "longest wait", counted, behind, waited);
+                    held.car, green ? "the field has passed" : "longest wait", counted, behind, waited);
         g_held.reset();
         let_car_go();
         stop_skipping_lights_wait();
@@ -198,6 +216,7 @@ inline void stop_waiting()
     g_not_learned_from.clear();
     let_car_go();
     stop_skipping_lights_wait();
+    let_lights_go();
 }
 
 } // namespace improved_parc_ferme

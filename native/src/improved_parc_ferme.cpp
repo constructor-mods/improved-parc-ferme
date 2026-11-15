@@ -16,12 +16,14 @@
 #include "parc_ferme_store.hpp"
 #include "pit_exit.hpp"
 #include "pit_exit_hold.hpp"
+#include "pit_hold.hpp"
 #include "pit_start.hpp"
 #include "race_hud.hpp"
 #include "rows_service.hpp"
 #include "rules_setting.hpp"
 #include "sessions.hpp"
 #include "setup_rows.hpp"
+#include "test_switch.hpp"
 #include "unlock.hpp"
 
 #include <cstdint>
@@ -45,8 +47,31 @@ namespace {
 // Cars sent to their garage at this race start, and when.
 std::map<int, Clock::time_point> g_in_garage;
 std::set<int> g_driven_out;
-// Cars sent to the end of the pit lane at this race start.
-std::set<int> g_at_pit_exit;
+// Cars that drive to the end of the pit lane at this race start, and when they went to their garage.
+std::map<int, Clock::time_point> g_at_pit_exit;
+// A pit exit starter goes from its garage this soon.
+constexpr auto kPitExitDriveOut = std::chrono::seconds(1);
+
+// The test switch: the session started at this time and its test car isn't set up yet.
+bool g_test_waiting = false;
+Clock::time_point g_test_since;
+constexpr auto kTestDelay = std::chrono::seconds(1);
+
+// With the test switch: the test car gets a pit lane start in this session, as if the race had just started.
+void apply_test_switch()
+{
+    if (g_test_car < 0 || !g_test_waiting || Clock::now() - g_test_since < kTestDelay) {
+        return;
+    }
+    g_test_waiting = false;
+    g_phase = Phase::racing;
+    g_race_started = Clock::now();
+    g_pit_lane_start = {g_test_car};
+    g_in_garage.clear();
+    g_driven_out.clear();
+    g_at_pit_exit.clear();
+    log("[improved-parc-ferme] test switch: car %d has a pit lane start", g_test_car);
+}
 
 // The session's car number for a car, or -1 if it isn't on the live car list.
 int car_number(uintptr_t car)
@@ -128,9 +153,8 @@ void frame(double, void *)
     void *pit_lane = g_pit_lane;
     bool racing = false;
     bool waiting_in_garage = false;
-    // Off for now: the car can't be held still at the pit exit yet, so every pit lane start is from the garage.
-    constexpr bool kStartAtPitExit = false;
-    bool exit_known = kStartAtPitExit && pit_exit_known();
+    std::vector<int> to_exit_garage;
+    bool exit_known = can_stop_cars() && pit_exit_known();
     bool exit_fits = false;
     if (exit_known) {
         exit_fits = pit_exit_fits_the_grid();
@@ -148,6 +172,7 @@ void frame(double, void *)
     {
         std::lock_guard<std::mutex> lock(g_mutex);
         follow_session(session, g_rules_on);
+        apply_test_switch();
         if (g_parc_ferme_changed) {
             save_parc_ferme();
         }
@@ -161,7 +186,7 @@ void frame(double, void *)
                 }
                 // The end of the pit lane when we know where it is on this track, else the garage.
                 if (exit_known && exit_fits && g_at_pit_exit.empty()) {
-                    g_at_pit_exit.insert(car);
+                    g_at_pit_exit[car] = now;
                     to_pit_exit.push_back(car);
                 } else {
                     if (exit_known && !exit_fits) {
@@ -182,6 +207,17 @@ void frame(double, void *)
                     waiting_in_garage = true;
                 }
             }
+            for (const auto &[car, since] : g_at_pit_exit) {
+                if (g_driven_out.count(car)) {
+                    continue;
+                }
+                if (now - since >= kPitExitDriveOut) {
+                    g_driven_out.insert(car);
+                    to_drive_out.push_back(car);
+                } else {
+                    waiting_in_garage = true;
+                }
+            }
         }
     }
     // Outside the lock: all of these call into the game.
@@ -192,16 +228,24 @@ void frame(double, void *)
             hud::toast(message.text, message.detail, 5, "generic");
         }
     }
-    for (int car : to_pit_exit) {
-        start_at_pit_exit(car);
-        // In the pit lane, not stopped on the track: no yellow flag for the waiting car.
-        game::Game_Pitlane_SetVehicleStatus(pit_lane, uint8_t(car), kLeavingPitLane);
+    if (!to_pit_exit.empty()) {
+        for (int car : to_pit_exit) {
+            start_at_pit_exit(car);
+        }
+        send_to_garage(pit_lane, to_pit_exit);
         if (hud::available()) {
             hud::toast("Pit lane start", "Parc ferme: wait at the pit exit until the field has passed", 5, "generic");
         }
     }
-    if (racing && hold_at_pit_exit() && hud::available()) {
-        hud::toast("Pit exit open", "Go!", 4, "generic");
+    if (racing) {
+        HoldNews news = hold_at_pit_exit();
+        if (news.drive_out_again >= 0) {
+            log("[improved-parc-ferme] car %d still in its garage at lights out: drives out now", news.drive_out_again);
+            drive_out(pit_lane, {news.drive_out_again});
+        }
+        if (news.free_to_go && hud::available()) {
+            hud::toast("Pit exit open", "Go!", 4, "generic");
+        }
     }
     if (!to_garage.empty()) {
         send_to_garage(pit_lane, to_garage);
@@ -251,6 +295,8 @@ SWOFTY_WRAP(Game_Pitlane_SetVehicleStatus, void, void *self, uint8_t vehicle, ui
 SWOFTY_ON_LOAD
 {
     keep_rows_open();
+    follow_start_system();
+    read_test_switch();
     events::on_frame(frame);
 }
 
@@ -269,9 +315,12 @@ SWOFTY_REGISTER
             track = std::string(context.session()->track.id());
         }
         std::string name = track_name(track);
+        stop_waiting();
         at_track(name);
         std::lock_guard<std::mutex> lock(g_mutex);
         g_weekend_track = name;
+        g_test_waiting = g_test_car >= 0;
+        g_test_since = Clock::now();
         // The session ended and this one has the same number (the race loaded again): follow it again.
         if (g_session_ended) {
             uint32_t again = g_session;
@@ -298,6 +347,7 @@ SWOFTY_REGISTER
     });
     // A restarted race fires race.start again, and the pit lane start is served again.
     events::on("race.start").after([](std::span<const std::byte>, const events::Context &) {
+        stop_waiting();
         std::lock_guard<std::mutex> lock(g_mutex);
         g_phase = Phase::racing;
         g_race_started = Clock::now();
@@ -308,7 +358,9 @@ SWOFTY_REGISTER
         hud_stays_in_garage(false);
     });
     events::on("session.end").after([](std::span<const std::byte>, const events::Context &) {
+        stop_waiting();
         std::lock_guard<std::mutex> lock(g_mutex);
+        g_test_waiting = false;
         if (g_phase == Phase::qualifying) {
             close_all();
             g_parc_ferme_track = g_weekend_track;

@@ -44,8 +44,8 @@ constexpr size_t kMostSamples = 2000;
 constexpr float kPastTheExit = 10.0f;
 // Lights out: another car has moved this far from its grid slot.
 constexpr float kMovedOff = 3.0f;
-// The car is put back on its spot when it has moved this far.
-constexpr float kHeldWithin = 0.5f;
+// The car stops this far before the pit exit line.
+constexpr float kStopBeforeExit = 5.0f;
 // The longest wait after lights out, and before it.
 constexpr auto kLongestHold = std::chrono::seconds(25);
 constexpr auto kLongestBeforeLightsOut = std::chrono::seconds(60);
@@ -77,6 +77,9 @@ struct Held {
     int car = -1;
     ExitClock::time_point since;
     std::optional<ExitClock::time_point> lights_out;
+    // The game's own clock at lights out (pauses don't count).
+    double lights_out_seconds = 0;
+    bool driven_out_again = false;
     std::map<int, Matrix> others_at_start;
 };
 

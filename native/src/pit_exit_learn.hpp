@@ -95,6 +95,29 @@ inline void at_track(const std::string &track)
     }
 }
 
+// The track wasn't known when the session started (its length comes later on some loads): look again, at most once
+// a second. Never called while holding a lock.
+inline void find_track_again()
+{
+    static std::chrono::steady_clock::time_point next{};
+    auto now = std::chrono::steady_clock::now();
+    if (now < next) {
+        return;
+    }
+    next = now + std::chrono::seconds(1);
+    {
+        std::lock_guard<std::mutex> lock(g_exit_mutex);
+        if (!g_track.empty()) {
+            return;
+        }
+    }
+    std::string track = track_name("");
+    if (!track.empty()) {
+        swofty::log("[improved-parc-ferme] track found after the session start: %s", track.c_str());
+        at_track(track);
+    }
+}
+
 inline bool pit_exit_known()
 {
     std::lock_guard<std::mutex> lock(g_exit_mutex);

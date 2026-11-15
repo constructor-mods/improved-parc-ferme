@@ -154,6 +154,7 @@ void frame(double, void *)
     bool racing = false;
     bool waiting_in_garage = false;
     std::vector<int> to_exit_garage;
+    find_track_again();
     bool exit_known = can_stop_cars() && pit_exit_known();
     bool exit_fits = false;
     if (exit_known) {

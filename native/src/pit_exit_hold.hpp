@@ -144,9 +144,10 @@ inline HoldNews hold_at_pit_exit()
     }
     if (now >= next_log) {
         next_log = now + kHoldLogEvery;
-        swofty::log("[improved-parc-ferme] car %d: %.0f km/h, %.1f m to the line, %s (%llu speed writes)", held.car,
-                    g_stop_speed.load() * 3.6f, g_stop_distance.load(), g_standing.load() ? "held" : "driving",
-                    (unsigned long long)g_speed_writes.load());
+        swofty::log("[improved-parc-ferme] car %d: %.0f km/h, %.1f m to the line, %s (%llu speed writes, gear %u)",
+                    held.car, g_stop_speed.load() * 3.6f, g_stop_distance.load(),
+                    g_standing.load() ? "held" : "driving", (unsigned long long)g_speed_writes.load(),
+                    g_driving_gear.load());
     }
     if (!held.lights_out) {
         if (g_standing.load() && g_lights_wait.load()) {

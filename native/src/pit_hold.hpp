@@ -43,6 +43,14 @@ constexpr uintptr_t kRaceStarted = 0x100;
 constexpr uintptr_t kLockBits = 0x1fc;
 constexpr uint32_t kStartLock = 2;
 
+// Before lights out the start system puts every human car in neutral (its gear and the gear it shifts to) and
+// clears one more value each step. A car driving down the pit lane keeps its own instead.
+constexpr uintptr_t kGearBox = 0x538;
+constexpr uintptr_t kGears = 0x680;
+constexpr uintptr_t kStartValue = 0x21c;
+constexpr uint64_t kNeutral = 0x0000000100000001;
+constexpr uint64_t kFirstGear = 0x0000000200000002;
+
 // The car's physics body and its speed.
 constexpr uintptr_t kHoldCarBody = 0x558;
 constexpr uintptr_t kHoldBodyMatrix = 0x190;
@@ -83,6 +91,16 @@ inline std::atomic<bool> g_race_started_known{false};
 inline std::atomic<float> g_stop_speed{0};
 inline std::atomic<float> g_stop_distance{0};
 inline std::atomic<uint64_t> g_speed_writes{0};
+// The driving car's gear, for the log (1 = neutral, 2 = first).
+inline std::atomic<uint32_t> g_driving_gear{0};
+
+// What the start system would change on the driving car, kept from before its step.
+struct StartWrites {
+    uintptr_t car = 0;
+    uintptr_t gear_box = 0;
+    uint64_t gears = 0;
+    uint32_t start_value = 0;
+};
 
 struct SpeedSample {
     HoldClock::time_point when;
@@ -199,9 +217,59 @@ inline void stop_step(const StopPlan &plan, float step)
     }
 }
 
+// The car the game drives down the pit lane before lights out: not yet standing at the line.
+inline uintptr_t car_driving_before_the_start()
+{
+    if (g_race_started_value.load() != 0 || g_standing.load()) {
+        return 0;
+    }
+    std::lock_guard<std::mutex> lock(g_stop_mutex);
+    if (!g_stop_plan) {
+        return 0;
+    }
+    return g_stop_plan->car;
+}
+
+// Before the start system's step: the driving car's gear (first gear instead of neutral the first time).
+inline StartWrites keep_start_writes(uintptr_t car)
+{
+    StartWrites kept;
+    if (!car || !swofty::mem::readable(car + kStartValue, sizeof(uint32_t))) {
+        return kept;
+    }
+    uintptr_t gear_box = 0;
+    if (!swofty::mem::read(car + kGearBox, gear_box) || !gear_box ||
+        !swofty::mem::readable(gear_box + kGears, sizeof(uint64_t))) {
+        return kept;
+    }
+    auto *gears = reinterpret_cast<uint64_t *>(gear_box + kGears);
+    if (*gears == kNeutral) {
+        *gears = kFirstGear;
+    }
+    kept.car = car;
+    kept.gear_box = gear_box;
+    kept.gears = *gears;
+    kept.start_value = *reinterpret_cast<uint32_t *>(car + kStartValue);
+    return kept;
+}
+
+// After the start system's step: the driving car gets its gear back and isn't locked like a car on the grid.
+inline void undo_start_writes(const StartWrites &kept)
+{
+    if (!kept.car) {
+        return;
+    }
+    *reinterpret_cast<uint64_t *>(kept.gear_box + kGears) = kept.gears;
+    *reinterpret_cast<uint32_t *>(kept.car + kStartValue) = kept.start_value;
+    *reinterpret_cast<uint32_t *>(kept.car + kLockBits) &= ~kStartLock;
+    g_driving_gear = uint32_t(kept.gears);
+}
+
 inline void start_update(void *self, void *context)
 {
+    StartWrites kept = keep_start_writes(car_driving_before_the_start());
     g_start_update(self, context);
+    undo_start_writes(kept);
     uint32_t started = 0;
     if (swofty::mem::read(reinterpret_cast<uintptr_t>(self) + kRaceStarted, started)) {
         uint32_t before = g_race_started_value.exchange(started);

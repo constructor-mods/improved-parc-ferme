@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
-// For testing only: a file test_pit_lane_start.txt next to the addon's DLL, holding a car number, gives that car a
-// pit lane start in every race session, even with no qualifying. The file isn't part of the addon.
+// For testing only: a file test_pit_lane_start.txt in the installed addon's native folder, holding a car number,
+// gives that car a pit lane start in every race session, even with no qualifying. The file isn't part of the addon.
 #pragma once
 #include <swofty/mixin.hpp>
 
@@ -15,22 +15,13 @@ inline int g_test_car = -1;
 
 inline void read_test_switch()
 {
-    HMODULE module = nullptr;
-    auto flags = GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT;
-    if (!GetModuleHandleExA(flags, reinterpret_cast<LPCSTR>(&read_test_switch), &module)) {
-        return;
-    }
-    char path[MAX_PATH] = {};
-    DWORD length = GetModuleFileNameA(module, path, MAX_PATH);
+    // The game runs a copy of the DLL, so the file is looked for in the installed addon's folder.
+    char folder[MAX_PATH] = {};
+    DWORD length = GetEnvironmentVariableA("LOCALAPPDATA", folder, MAX_PATH);
     if (length == 0 || length >= MAX_PATH) {
         return;
     }
-    std::string file(path);
-    size_t slash = file.find_last_of("\\/");
-    if (slash == std::string::npos) {
-        return;
-    }
-    file = file.substr(0, slash + 1) + "test_pit_lane_start.txt";
+    std::string file = std::string(folder) + "/Swofty/addons/msyeett.improved-parc-ferme/native/test_pit_lane_start.txt";
     FILE *input = std::fopen(file.c_str(), "r");
     if (!input) {
         return;

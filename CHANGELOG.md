@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.1.3
+- Tells Improved Car Setups (0.1.0 or newer) which setup rows are locked, so its setup screen can mark them.
+
 ## 0.1.2
 - Cheaper memory checks with Swofty Launcher 1.9.30 or newer (fewer small hitches).
 

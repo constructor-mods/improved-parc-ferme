@@ -9,6 +9,7 @@
 #include <swofty/game.hpp>
 #include <swofty/hud.hpp>
 #include <swofty/registry.hpp>
+#include <swofty/services.hpp>
 #include <swofty/systems/cars.hpp>
 
 #include "parc_ferme.hpp"
@@ -17,6 +18,7 @@
 #include "pit_exit_hold.hpp"
 #include "pit_start.hpp"
 #include "race_hud.hpp"
+#include "rows_service.hpp"
 #include "rules_setting.hpp"
 #include "sessions.hpp"
 #include "setup_rows.hpp"
@@ -55,6 +57,42 @@ int car_number(uintptr_t car)
         }
     }
     return -1;
+}
+
+// The car a setup screen belongs to, as its session number, or -1.
+int car_of_setup(void *setup_manager)
+{
+    uintptr_t car = 0;
+    if (!setup_manager || !swofty::mem::read(reinterpret_cast<uintptr_t>(setup_manager) + kSetupCar, car) || !car) {
+        return -1;
+    }
+    return car_number(car);
+}
+
+uint64_t service_locked_rows(void *setup_manager)
+{
+    int car = car_of_setup(setup_manager);
+    if (car < 0) {
+        return 0;
+    }
+    std::lock_guard<std::mutex> lock(g_mutex);
+    if (!checking() || g_pit_lane_start.count(car)) {
+        return 0;
+    }
+    if (!g_parc_ferme.count({car, Block::first}) && !g_parc_ferme.count({car, Block::second})) {
+        return 0;
+    }
+    return locked_row_bits();
+}
+
+int service_pit_lane_start(void *setup_manager)
+{
+    int car = car_of_setup(setup_manager);
+    if (car < 0) {
+        return 0;
+    }
+    std::lock_guard<std::mutex> lock(g_mutex);
+    return g_pit_lane_start.count(car) ? 1 : 0;
 }
 
 uint32_t g_session = 0;
@@ -236,6 +274,12 @@ SWOFTY_ON_LOAD
 
 SWOFTY_REGISTER
 {
+    // Tell other addons which setup rows are under parc ferme.
+    static ParcFermeRows rows{};
+    rows.size = sizeof rows;
+    rows.locked_rows = service_locked_rows;
+    rows.pit_lane_start = service_pit_lane_start;
+    log("[improved-parc-ferme] rows service: %s", services::name(services::publish(rows)));
     // The track of the session, for the end of its pit lane.
     events::on("session.start").after([](std::span<const std::byte>, const events::Context &context) {
         std::string track;

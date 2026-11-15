@@ -61,6 +61,7 @@ inline void start_at_pit_exit(int car)
             }
         }
         g_held = held;
+        g_not_learned_from.insert(car);
         plan.car = car_handle(car);
         plan.direction_x = g_pit_exit->direction_x;
         plan.direction_z = g_pit_exit->direction_z;
@@ -159,6 +160,7 @@ inline void stop_waiting()
 {
     std::lock_guard<std::mutex> lock(g_exit_mutex);
     g_held.reset();
+    g_not_learned_from.clear();
     let_car_go();
 }
 

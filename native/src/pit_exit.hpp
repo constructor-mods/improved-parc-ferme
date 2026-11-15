@@ -18,6 +18,7 @@
 #include <map>
 #include <mutex>
 #include <optional>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -91,6 +92,8 @@ inline std::optional<PitExit> g_pit_exit;
 // The pit exit came from the addon's list, not from a car on this PC.
 inline bool g_pit_exit_built_in = false;
 inline std::optional<Held> g_held;
+// A pit lane starter's drive out stops at the pit exit: it doesn't show where the pit exit is.
+inline std::set<int> g_not_learned_from;
 inline std::string g_track;
 
 // Every live car's handle by its car number.

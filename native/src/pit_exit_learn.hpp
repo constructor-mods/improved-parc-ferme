@@ -39,6 +39,10 @@ inline void learn_pit_exit(void *pit_lane)
         }
     }
     for (int car : g_just_exited) {
+        if (g_not_learned_from.count(car)) {
+            g_pit_lane_path.erase(car);
+            continue;
+        }
         auto path = g_pit_lane_path.find(car);
         float *matrix = car_matrix(car_handle(car));
         if (path == g_pit_lane_path.end() || path->second.empty() || !matrix) {

@@ -6,6 +6,7 @@
 #include "pit_exit.hpp"
 #include "pit_hold.hpp"
 #include "start_lights.hpp"
+#include "start_prompt.hpp"
 
 namespace improved_parc_ferme {
 
@@ -74,6 +75,7 @@ inline void start_at_pit_exit(int car)
     stop_car_at(plan);
     skip_lights_wait(car);
     hold_lights();
+    free_from_start_prompt(car);
 }
 
 // What the frame has to do for the waiting car.
@@ -204,6 +206,7 @@ inline HoldNews hold_at_pit_exit()
         g_held.reset();
         let_car_go();
         stop_skipping_lights_wait();
+        start_prompt_as_normal();
         news.free_to_go = true;
     }
     return news;
@@ -218,6 +221,7 @@ inline void stop_waiting()
     let_car_go();
     stop_skipping_lights_wait();
     let_lights_go();
+    start_prompt_as_normal();
 }
 
 } // namespace improved_parc_ferme

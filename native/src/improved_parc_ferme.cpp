@@ -293,6 +293,15 @@ SWOFTY_WRAP(Game_Pitlane_SetVehicleStatus, void, void *self, uint8_t vehicle, ui
     }
 }
 
+// The race start's clutch prompt: not for the car driving down the pit lane.
+SWOFTY_WRAP(Game_VehicleAntiStallSystem_IsStartPromptActive, bool, void *self, uint8_t vehicle)
+{
+    if (hide_start_prompt(int(vehicle))) {
+        return false;
+    }
+    return orig(self, vehicle);
+}
+
 SWOFTY_ON_LOAD
 {
     keep_rows_open();

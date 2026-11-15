@@ -17,15 +17,13 @@ constexpr const char *kPitExitsFile = "pit_exits_2.txt";
 
 // The name the end of the pit lane is kept under: the track's id, or its length in metres when the session doesn't
 // say which track it is.
+// The track by its length (the known pit exits use it); the session's own id only when the length isn't there yet.
 inline std::string track_name(const std::string &id)
 {
-    if (!id.empty()) {
-        return id;
-    }
     uintptr_t length_at = swofty::api->resolve("g_Game_TrackLength");
     float length = 0;
     if (!length_at || !swofty::mem::read(length_at, length) || length < 100.0f) {
-        return "";
+        return id;
     }
     return "length_" + std::to_string(int(length + 0.5f));
 }

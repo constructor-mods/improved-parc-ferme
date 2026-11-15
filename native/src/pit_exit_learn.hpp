@@ -107,12 +107,12 @@ inline void find_track_again()
     next = now + std::chrono::seconds(1);
     {
         std::lock_guard<std::mutex> lock(g_exit_mutex);
-        if (!g_track.empty()) {
+        if (!g_track.empty() && g_track.rfind("length_", 0) == 0) {
             return;
         }
     }
     std::string track = track_name("");
-    if (!track.empty()) {
+    if (track.rfind("length_", 0) == 0) {
         swofty::log("[improved-parc-ferme] track found after the session start: %s", track.c_str());
         at_track(track);
     }

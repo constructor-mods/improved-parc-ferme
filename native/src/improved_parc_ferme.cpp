@@ -318,10 +318,16 @@ SWOFTY_REGISTER
             track = std::string(context.session()->track.id());
         }
         std::string name = track_name(track);
+        log("[improved-parc-ferme] session start at track \"%s\" (%s)", track.c_str(), name.c_str());
         stop_waiting();
         at_track(name);
         std::lock_guard<std::mutex> lock(g_mutex);
-        g_weekend_track = name;
+        // The weekend keeps the name it always had (the session's id, else the length).
+        if (!track.empty()) {
+            g_weekend_track = track;
+        } else {
+            g_weekend_track = name;
+        }
         g_test_waiting = g_test_car >= 0;
         g_test_since = Clock::now();
         // The session ended and this one has the same number (the race loaded again): follow it again.
@@ -332,7 +338,7 @@ SWOFTY_REGISTER
         }
         if (g_phase == Phase::before_start) {
             // Parc ferme from another track's weekend doesn't count here.
-            if (g_parc_ferme_track != name) {
+            if (g_parc_ferme_track != g_weekend_track) {
                 start_qualifying();
             }
             load_parc_ferme();

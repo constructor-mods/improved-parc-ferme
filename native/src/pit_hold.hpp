@@ -215,10 +215,6 @@ inline void start_update(void *self, void *context)
         plan = g_stop_plan;
     }
     if (plan) {
-        // The game holds every car before the lights: this one may drive down the pit lane meanwhile.
-        if (swofty::mem::readable(plan->car + kLockBits, sizeof(uint32_t))) {
-            *reinterpret_cast<uint32_t *>(plan->car + kLockBits) &= ~kStartLock;
-        }
         stop_step(*plan, float(step));
     }
 }

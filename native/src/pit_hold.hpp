@@ -25,7 +25,6 @@ using HoldClock = std::chrono::steady_clock;
 // Where the car should stop, and which way the pit lane runs there.
 struct StopPlan {
     uintptr_t car = 0;
-    int number = -1;
     float stop_x = 0;
     float stop_z = 0;
     float direction_x = 0;
@@ -39,14 +38,6 @@ using StartUpdate = void (*)(void *self, void *context);
 
 // The start system's own "the race has started" value: 0 until lights out.
 constexpr uintptr_t kRaceStarted = 0x100;
-
-// Who drives each car: the game's list of controller sets, one per car, and the flag that keeps a car waiting
-// until the race has started.
-constexpr uintptr_t kControllerSystem = 0x6096578;
-constexpr uintptr_t kControllerSetsBegin = 0x30;
-constexpr uintptr_t kControllerSetsEnd = 0x38;
-constexpr uintptr_t kControllerFlags = 0x30;
-constexpr uint32_t kSessionNotStarted = 0x400;
 
 // The start lock the game puts on each car before the lights; cleared when the car is let go.
 constexpr uintptr_t kLockBits = 0x1fc;
@@ -164,41 +155,6 @@ inline float measured_speed(std::deque<SpeedSample> &samples, HoldClock::time_po
     return float(std::hypot(x - first.x, z - first.z) / seconds);
 }
 
-// Before the lights the game keeps every car waiting, also in the pit lane: this car may drive to the pit exit
-// meanwhile. Memory only, no game calls.
-inline void let_drive_before_the_start(int car)
-{
-    uintptr_t system = 0;
-    uintptr_t begin = 0;
-    uintptr_t end = 0;
-    uintptr_t set = 0;
-    uint32_t flags = 0;
-    if (car < 0 || !swofty::mem::read(swofty::api->module_base() + kControllerSystem, system) || !system) {
-        return;
-    }
-    if (!swofty::mem::read(system + kControllerSetsBegin, begin)) {
-        return;
-    }
-    if (!swofty::mem::read(system + kControllerSetsEnd, end)) {
-        return;
-    }
-    if (end <= begin || (end - begin) / sizeof(uintptr_t) <= uintptr_t(car)) {
-        return;
-    }
-    if (!swofty::mem::read(begin + uintptr_t(car) * sizeof(uintptr_t), set) || !set) {
-        return;
-    }
-    if (!swofty::mem::read(set + kControllerFlags, flags) || !(flags & kSessionNotStarted)) {
-        return;
-    }
-    *reinterpret_cast<uint32_t *>(set + kControllerFlags) = flags & ~kSessionNotStarted;
-    static int logged = 0;
-    if (logged < 3) {
-        logged++;
-        swofty::log("[improved-parc-ferme] car %d may drive before the start (flags %#x)", car, flags);
-    }
-}
-
 // One physics step for the car being stopped. Calls into the game, never while holding a lock.
 inline void stop_step(const StopPlan &plan, float step)
 {
@@ -273,9 +229,6 @@ inline void start_update(void *self, void *context)
         plan = g_stop_plan;
     }
     if (plan) {
-        if (g_race_started_known.load() && g_race_started_value.load() == 0) {
-            let_drive_before_the_start(plan->number);
-        }
         stop_step(*plan, float(step));
     }
 }

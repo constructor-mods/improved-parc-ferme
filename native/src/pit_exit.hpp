@@ -49,6 +49,8 @@ constexpr float kMovedOff = 3.0f;
 constexpr float kStopBeforeExit = 5.0f;
 // The longest wait after lights out, and before it.
 constexpr auto kLongestHold = std::chrono::seconds(25);
+// The field isn't checked this soon after lights out: every car on the grid has moved off by then.
+constexpr double kFieldCheckAfter = 3.0;
 constexpr auto kLongestBeforeLightsOut = std::chrono::seconds(60);
 
 struct PitExit {
@@ -81,6 +83,9 @@ struct Held {
     // The game's own clock at lights out (pauses don't count).
     double lights_out_seconds = 0;
     bool driven_out_again = false;
+    // The game's start was seen waiting for the lights since this car started waiting.
+    bool saw_start_waiting = false;
+    std::map<int, Matrix> others_at_lights_out;
     std::map<int, Matrix> others_at_start;
 };
 

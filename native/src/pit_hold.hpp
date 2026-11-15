@@ -36,6 +36,9 @@ constexpr uintptr_t kStartUpdateSlot = 0x57f8b28;
 constexpr uintptr_t kStartUpdate = 0x2f4a070;
 using StartUpdate = void (*)(void *self, void *context);
 
+// The start system's own "the race has started" value: 0 until lights out.
+constexpr uintptr_t kRaceStarted = 0x100;
+
 // The start lock the game puts on each car before the lights; cleared when the car is let go.
 constexpr uintptr_t kLockBits = 0x1fc;
 constexpr uint32_t kStartLock = 2;
@@ -73,6 +76,9 @@ inline std::atomic<bool> g_standing{false};
 inline std::atomic<uintptr_t> g_let_go{0};
 // Seconds the game has run (pauses don't count), for the longest wait.
 inline std::atomic<double> g_game_seconds{0};
+// The start system's "the race has started" value, last step.
+inline std::atomic<uint32_t> g_race_started_value{0};
+inline std::atomic<bool> g_race_started_known{false};
 // The last speed and distance to the stop, for the log.
 inline std::atomic<float> g_stop_speed{0};
 inline std::atomic<float> g_stop_distance{0};
@@ -196,6 +202,14 @@ inline void stop_step(const StopPlan &plan, float step)
 inline void start_update(void *self, void *context)
 {
     g_start_update(self, context);
+    uint32_t started = 0;
+    if (swofty::mem::read(reinterpret_cast<uintptr_t>(self) + kRaceStarted, started)) {
+        uint32_t before = g_race_started_value.exchange(started);
+        if ((before == 0) != (started == 0) || !g_race_started_known.load()) {
+            swofty::log("[improved-parc-ferme] start system: race started value %#x", started);
+        }
+        g_race_started_known = true;
+    }
     static HoldClock::time_point last{};
     auto now = HoldClock::now();
     double step = std::chrono::duration<double>(now - last).count();

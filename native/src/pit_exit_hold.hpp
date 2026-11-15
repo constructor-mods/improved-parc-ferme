@@ -79,26 +79,47 @@ struct HoldNews {
     int drive_out_again = -1;
 };
 
-// True when every racing car is past the pit exit. Called with g_exit_mutex held; no game calls.
-inline bool field_has_passed(const Held &held, std::map<int, uintptr_t> &handles)
+// True when every racing car is past the pit exit. A car counts once it has moved off from where it was at lights
+// out (the safety car and a car that never got away don't). Called with g_exit_mutex held; no game calls.
+inline bool field_has_passed(const Held &held, std::map<int, uintptr_t> &handles, int &counted, int &behind)
 {
-    for (const auto &[other, start] : held.others_at_start) {
-        // A car the game has in the pits (the safety car waits there) never passes.
-        auto status = g_pit_status.find(other);
-        if (status != g_pit_status.end() && status->second != kBackOnTrack) {
-            continue;
-        }
+    counted = 0;
+    behind = 0;
+    for (const auto &[other, start] : held.others_at_lights_out) {
         float *matrix = car_matrix(handles[other]);
-        if (!matrix) {
+        if (!matrix || distance_flat(matrix, start[kPositionX], start[kPositionZ]) < kMovedOff) {
             continue;
         }
+        counted++;
         float along = (matrix[kPositionX] - g_pit_exit->exit_x) * g_pit_exit->direction_x +
                       (matrix[kPositionZ] - g_pit_exit->exit_z) * g_pit_exit->direction_z;
         if (along < kPastTheExit) {
-            return false;
+            behind++;
         }
     }
-    return true;
+    return behind == 0;
+}
+
+// Lights out: the game's start system says the race has started, or (when that isn't known) a car on the grid
+// moves off. Called with g_exit_mutex held; no game calls.
+inline bool lights_went_out(Held &held, std::map<int, uintptr_t> &handles)
+{
+    if (g_race_started_known.load()) {
+        if (g_race_started_value.load() == 0) {
+            held.saw_start_waiting = true;
+            return false;
+        }
+        if (held.saw_start_waiting) {
+            return true;
+        }
+    }
+    for (const auto &[other, start] : held.others_at_start) {
+        float *matrix = car_matrix(handles[other]);
+        if (matrix && distance_flat(matrix, start[kPositionX], start[kPositionZ]) > kMovedOff) {
+            return true;
+        }
+    }
+    return false;
 }
 
 // Every frame in the race: watches the start and the field, and lets the car go once the field has passed.
@@ -120,22 +141,24 @@ inline HoldNews hold_at_pit_exit()
                     g_stop_speed.load() * 3.6f, g_stop_distance.load(), g_standing.load() ? "held" : "driving",
                     (unsigned long long)g_speed_writes.load());
     }
-    // Lights out: the cars on the grid start to move.
     if (!held.lights_out) {
-        for (const auto &[other, start] : held.others_at_start) {
-            float *matrix = car_matrix(handles[other]);
-            if (matrix && distance_flat(matrix, start[kPositionX], start[kPositionZ]) > kMovedOff) {
-                held.lights_out = now;
-                swofty::log("[improved-parc-ferme] lights out: car %d waits for the field", held.car);
-                break;
+        bool out = lights_went_out(held, handles);
+        if (!out && now - held.since > kLongestBeforeLightsOut) {
+            out = true;
+        }
+        if (!out) {
+            return news;
+        }
+        held.lights_out = now;
+        held.lights_out_seconds = g_game_seconds.load();
+        for (const auto &[other, handle] : handles) {
+            float *matrix = car_matrix(handle);
+            if (other != held.car && matrix) {
+                held.others_at_lights_out[other] = copy_of(matrix);
             }
         }
-        if (!held.lights_out && now - held.since > kLongestBeforeLightsOut) {
-            held.lights_out = now;
-        }
-        if (held.lights_out) {
-            held.lights_out_seconds = g_game_seconds.load();
-        }
+        swofty::log("[improved-parc-ferme] lights out: car %d waits for the field (%zu cars)", held.car,
+                    held.others_at_lights_out.size());
         return news;
     }
     auto status = g_pit_status.find(held.car);
@@ -143,11 +166,17 @@ inline HoldNews hold_at_pit_exit()
         held.driven_out_again = true;
         news.drive_out_again = held.car;
     }
-    bool all_past = field_has_passed(held, handles);
     double waited = g_game_seconds.load() - held.lights_out_seconds;
+    if (waited < kFieldCheckAfter) {
+        return news;
+    }
+    int counted = 0;
+    int behind = 0;
+    bool all_past = field_has_passed(held, handles, counted, behind);
     if (all_past || waited > std::chrono::duration<double>(kLongestHold).count()) {
-        swofty::log("[improved-parc-ferme] car %d: pit exit open (%s)", held.car,
-                    all_past ? "the field has passed" : "longest wait");
+        swofty::log("[improved-parc-ferme] car %d: pit exit open (%s, %d cars racing, %d behind, %.1f s after lights "
+                    "out)",
+                    held.car, all_past ? "the field has passed" : "longest wait", counted, behind, waited);
         g_held.reset();
         let_car_go();
         news.free_to_go = true;

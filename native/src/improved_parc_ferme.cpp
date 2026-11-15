@@ -59,24 +59,10 @@ int car_number(uintptr_t car)
     return -1;
 }
 
-// The car a setup screen belongs to, as its session number, or -1.
-int car_of_setup(void *setup_manager)
+uint64_t service_locked_rows(int car)
 {
-    uintptr_t car = 0;
-    if (!setup_manager || !swofty::mem::read(reinterpret_cast<uintptr_t>(setup_manager) + kSetupCar, car) || !car) {
-        return -1;
-    }
-    return car_number(car);
-}
-
-uint64_t service_locked_rows(void *setup_manager)
-{
-    int car = car_of_setup(setup_manager);
-    if (car < 0) {
-        return 0;
-    }
     std::lock_guard<std::mutex> lock(g_mutex);
-    if (!checking() || g_pit_lane_start.count(car)) {
+    if (car < 0 || !checking() || g_pit_lane_start.count(car)) {
         return 0;
     }
     if (!g_parc_ferme.count({car, Block::first}) && !g_parc_ferme.count({car, Block::second})) {
@@ -85,12 +71,8 @@ uint64_t service_locked_rows(void *setup_manager)
     return locked_row_bits();
 }
 
-int service_pit_lane_start(void *setup_manager)
+int service_pit_lane_start(int car)
 {
-    int car = car_of_setup(setup_manager);
-    if (car < 0) {
-        return 0;
-    }
     std::lock_guard<std::mutex> lock(g_mutex);
     return g_pit_lane_start.count(car) ? 1 : 0;
 }

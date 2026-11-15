@@ -6,6 +6,8 @@
 #include <swofty/mem.hpp>
 #include <swofty/mixin.hpp>
 
+#include "ai_start.hpp"
+
 #include <windows.h>
 
 #include <atomic>
@@ -88,7 +90,7 @@ inline void new_lights()
 
 inline void hold_lights()
 {
-    g_lights_wait = g_start_lights_update != nullptr;
+    g_lights_wait = g_start_lights_update != nullptr && can_skip_lights_wait();
 }
 
 inline void let_lights_go()

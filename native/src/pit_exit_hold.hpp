@@ -63,7 +63,6 @@ inline void start_at_pit_exit(int car)
         g_held = held;
         g_not_learned_from.insert(car);
         plan.car = car_handle(car);
-        plan.number = car;
         plan.direction_x = g_pit_exit->direction_x;
         plan.direction_z = g_pit_exit->direction_z;
         plan.stop_x = g_pit_exit->exit_x - plan.direction_x * kStopBeforeExit;

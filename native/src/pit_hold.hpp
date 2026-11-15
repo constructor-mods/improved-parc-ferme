@@ -25,7 +25,6 @@ using HoldClock = std::chrono::steady_clock;
 // Where the car should stop, and which way the pit lane runs there.
 struct StopPlan {
     uintptr_t car = 0;
-    int number = -1;
     float stop_x = 0;
     float stop_z = 0;
     float direction_x = 0;
@@ -40,12 +39,13 @@ using StartUpdate = void (*)(void *self, void *context);
 // The start system's own "the race has started" value: 0 until lights out.
 constexpr uintptr_t kRaceStarted = 0x100;
 
-// The start system's list of cars, one entry per car number: the game lets a car drive in the pit lane only once
-// its entry's start is done (as it marks every car at lights out).
+// The start system's list of cars: each entry's car, and the driver it holds still until lights out.
 constexpr uintptr_t kStartEntriesBegin = 0x48;
 constexpr uintptr_t kStartEntriesEnd = 0x50;
-constexpr uintptr_t kEntryStartState = 0x18;
-constexpr uintptr_t kEntryStartDone = 0x30;
+constexpr uintptr_t kEntryCar = 0x50;
+constexpr uintptr_t kEntryDriver = 0x58;
+constexpr uintptr_t kDriverFlags = 0x1c;
+constexpr uint32_t kHeldForTheStart = 0x20;
 
 // The start lock the game puts on each car before the lights; cleared when the car is let go.
 constexpr uintptr_t kLockBits = 0x1fc;
@@ -163,42 +163,43 @@ inline float measured_speed(std::deque<SpeedSample> &samples, HoldClock::time_po
     return float(std::hypot(x - first.x, z - first.z) / seconds);
 }
 
-// Before the lights the game keeps every car in the pit lane waiting for the start: this car's start counts as
-// done, so it may drive on to the pit exit. Memory only, no game calls.
-inline void let_drive_before_the_start(void *start_system, int car)
+// Before the lights the game holds every car still, also one in the pit lane: this car may drive on to the pit exit.
+// Memory only, no game calls.
+inline void let_drive_before_the_start(void *start_system, uintptr_t car)
 {
     auto system = reinterpret_cast<uintptr_t>(start_system);
     uintptr_t begin = 0;
     uintptr_t end = 0;
-    uintptr_t entry = 0;
-    if (car < 0 || !swofty::mem::read(system + kStartEntriesBegin, begin)) {
+    if (!swofty::mem::read(system + kStartEntriesBegin, begin)) {
         return;
     }
-    if (!swofty::mem::read(system + kStartEntriesEnd, end) || end <= begin) {
+    if (!swofty::mem::read(system + kStartEntriesEnd, end)) {
         return;
     }
-    if ((end - begin) / sizeof(uintptr_t) <= uintptr_t(car)) {
+    if (end < begin) {
         return;
     }
-    if (!swofty::mem::read(begin + uintptr_t(car) * sizeof(uintptr_t), entry) || !entry) {
-        return;
+    for (uintptr_t at = begin; at < end; at += sizeof(uintptr_t)) {
+        uintptr_t entry = 0;
+        uintptr_t entry_car = 0;
+        uintptr_t driver = 0;
+        uint32_t flags = 0;
+        if (!swofty::mem::read(at, entry) || !entry || !swofty::mem::read(entry + kEntryCar, entry_car)) {
+            continue;
+        }
+        if (entry_car != car || !swofty::mem::read(entry + kEntryDriver, driver) || !driver) {
+            continue;
+        }
+        if (!swofty::mem::read(driver + kDriverFlags, flags) || !(flags & kHeldForTheStart)) {
+            continue;
+        }
+        *reinterpret_cast<uint32_t *>(driver + kDriverFlags) = flags & ~kHeldForTheStart;
+        static bool logged = false;
+        if (!logged) {
+            logged = true;
+            swofty::log("[improved-parc-ferme] the waiting car may drive on before the start");
+        }
     }
-    if (!swofty::mem::readable(entry + kEntryStartState, kEntryStartDone + 1 - kEntryStartState)) {
-        return;
-    }
-    auto *done = reinterpret_cast<uint8_t *>(entry + kEntryStartDone);
-    auto *state = reinterpret_cast<uint32_t *>(entry + kEntryStartState);
-    if (*done == 1 && *state == 0) {
-        return;
-    }
-    static bool logged = false;
-    if (!logged) {
-        logged = true;
-        swofty::log("[improved-parc-ferme] car %d may drive on before the start (start state %u, done %u)", car,
-                    *state, *done);
-    }
-    *done = 1;
-    *state = 0;
 }
 
 // One physics step for the car being stopped. Calls into the game, never while holding a lock.
@@ -276,7 +277,7 @@ inline void start_update(void *self, void *context)
     }
     if (plan) {
         if (g_race_started_known.load() && g_race_started_value.load() == 0) {
-            let_drive_before_the_start(self, plan->number);
+            let_drive_before_the_start(self, plan->car);
         }
         stop_step(*plan, float(step));
     }

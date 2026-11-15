@@ -17,7 +17,6 @@
 #include "pit_exit.hpp"
 #include "pit_exit_hold.hpp"
 #include "pit_hold.hpp"
-#include "hold_probe.hpp"
 #include "pit_start.hpp"
 #include "race_hud.hpp"
 #include "rows_service.hpp"
@@ -297,7 +296,6 @@ SWOFTY_ON_LOAD
 {
     keep_rows_open();
     follow_start_system();
-    g_probe = [](void *start_system, const StopPlan &plan) { probe_waiting_car(start_system, plan, g_pit_lane.load()); };
     read_test_switch();
     events::on_frame(frame);
 }

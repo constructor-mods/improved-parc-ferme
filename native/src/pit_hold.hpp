@@ -25,7 +25,6 @@ using HoldClock = std::chrono::steady_clock;
 // Where the car should stop, and which way the pit lane runs there.
 struct StopPlan {
     uintptr_t car = 0;
-    int number = -1;
     float stop_x = 0;
     float stop_z = 0;
     float direction_x = 0;
@@ -70,8 +69,6 @@ constexpr float kStanding = 0.5f;
 constexpr auto kSpeedWindow = std::chrono::milliseconds(150);
 
 inline StartUpdate g_start_update = nullptr;
-// Temporary probe, called each step while a car waits.
-inline void (*g_probe)(void *start_system, const StopPlan &plan) = nullptr;
 // Shared between the frame and the start system's update. Never held around a game call.
 inline std::mutex g_stop_mutex;
 inline std::optional<StopPlan> g_stop_plan;
@@ -232,9 +229,6 @@ inline void start_update(void *self, void *context)
         plan = g_stop_plan;
     }
     if (plan) {
-        if (g_probe) {
-            g_probe(self, *plan);
-        }
         stop_step(*plan, float(step));
     }
 }

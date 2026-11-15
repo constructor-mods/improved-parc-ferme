@@ -296,6 +296,7 @@ SWOFTY_ON_LOAD
 {
     keep_rows_open();
     follow_start_system();
+    follow_lights_wait();
     read_test_switch();
     events::on_frame(frame);
 }

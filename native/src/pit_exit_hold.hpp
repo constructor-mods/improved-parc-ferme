@@ -2,6 +2,7 @@
 // The pit exit start at the race: the car goes to its garage, the game drives it down the pit lane at once, and it
 // stops at the pit exit line. It waits there through the start until the field has passed the pit exit, then goes.
 #pragma once
+#include "ai_start.hpp"
 #include "pit_exit.hpp"
 #include "pit_hold.hpp"
 
@@ -70,6 +71,7 @@ inline void start_at_pit_exit(int car)
     }
     swofty::log("[improved-parc-ferme] car %d starts from the pit lane: drives to the pit exit and waits", car);
     stop_car_at(plan);
+    skip_lights_wait(car);
 }
 
 // What the frame has to do for the waiting car.
@@ -135,6 +137,9 @@ inline HoldNews hold_at_pit_exit()
     auto now = ExitClock::now();
     std::map<int, uintptr_t> handles = car_handles();
     static ExitClock::time_point next_log{};
+    if (g_lights_wait_skipped.exchange(false)) {
+        swofty::log("[improved-parc-ferme] car %d drives on to the pit exit before the lights", held.car);
+    }
     if (now >= next_log) {
         next_log = now + kHoldLogEvery;
         swofty::log("[improved-parc-ferme] car %d: %.0f km/h, %.1f m to the line, %s (%llu speed writes)", held.car,
@@ -179,6 +184,7 @@ inline HoldNews hold_at_pit_exit()
                     held.car, all_past ? "the field has passed" : "longest wait", counted, behind, waited);
         g_held.reset();
         let_car_go();
+        stop_skipping_lights_wait();
         news.free_to_go = true;
     }
     return news;
@@ -191,6 +197,7 @@ inline void stop_waiting()
     g_held.reset();
     g_not_learned_from.clear();
     let_car_go();
+    stop_skipping_lights_wait();
 }
 
 } // namespace improved_parc_ferme

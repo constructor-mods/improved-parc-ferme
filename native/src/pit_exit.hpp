@@ -8,6 +8,8 @@
 #include <swofty/mixin.hpp>
 #include <swofty/systems/cars.hpp>
 
+#include "car_list.hpp"
+
 #include <algorithm>
 #include <array>
 #include <chrono>
@@ -104,26 +106,6 @@ inline std::optional<Held> g_held;
 // A pit lane starter's drive out stops at the pit exit: it doesn't show where the pit exit is.
 inline std::set<int> g_not_learned_from;
 inline std::string g_track;
-
-// Every live car's handle by its car number.
-inline std::map<int, uintptr_t> car_handles()
-{
-    std::map<int, uintptr_t> handles;
-    for (const swofty::cars::live::Car &live : swofty::cars::live::cars()) {
-        handles[int(live.index())] = reinterpret_cast<uintptr_t>(live.handle());
-    }
-    return handles;
-}
-
-inline uintptr_t car_handle(int car)
-{
-    for (const swofty::cars::live::Car &live : swofty::cars::live::cars()) {
-        if (int(live.index()) == car) {
-            return reinterpret_cast<uintptr_t>(live.handle());
-        }
-    }
-    return 0;
-}
 
 inline float *car_matrix(uintptr_t handle)
 {

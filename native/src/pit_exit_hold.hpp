@@ -29,8 +29,8 @@ inline bool pit_exit_fits_the_grid()
     }
     float along = 0;
     int counted = 0;
-    for (const swofty::cars::live::Car &live : swofty::cars::live::cars()) {
-        float *matrix = car_matrix(reinterpret_cast<uintptr_t>(live.handle()));
+    for (const auto &[number, handle] : car_handles()) {
+        float *matrix = car_matrix(handle);
         if (!matrix) {
             continue;
         }
@@ -56,9 +56,8 @@ inline void start_at_pit_exit(int car)
         Held held;
         held.car = car;
         held.since = ExitClock::now();
-        for (const swofty::cars::live::Car &live : swofty::cars::live::cars()) {
-            int other = int(live.index());
-            float *matrix = car_matrix(reinterpret_cast<uintptr_t>(live.handle()));
+        for (const auto &[other, handle] : car_handles()) {
+            float *matrix = car_matrix(handle);
             if (other != car && matrix) {
                 held.others_at_start[other] = copy_of(matrix);
             }

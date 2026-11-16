@@ -76,9 +76,9 @@ void apply_test_switch()
 // The session's car number for a car, or -1 if it isn't on the live car list.
 int car_number(uintptr_t car)
 {
-    for (const cars::live::Car &live : cars::live::cars()) {
-        if (reinterpret_cast<uintptr_t>(live.handle()) == car) {
-            return int(live.index());
+    for (const auto &[number, handle] : improved_parc_ferme::car_handles()) {
+        if (handle == car) {
+            return number;
         }
     }
     return -1;

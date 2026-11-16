@@ -3,6 +3,8 @@
 // physics step as it comes up to the line, the way the game's own pit limiter slows a car, until it stands; then its
 // speed is kept at zero until it is let go. This runs right after the game's start system each step.
 #pragma once
+#include "clutch.hpp"
+
 #include <swofty/mem.hpp>
 #include <swofty/mixin.hpp>
 
@@ -50,6 +52,8 @@ constexpr uintptr_t kGears = 0x680;
 constexpr uintptr_t kStartValue = 0x21c;
 constexpr uint64_t kNeutral = 0x0000000100000001;
 constexpr uint64_t kFirstGear = 0x0000000200000002;
+// Whether the car's clutch is slipping.
+constexpr uintptr_t kClutchSlipping = 0x694;
 
 // The car's physics body and its speed.
 constexpr uintptr_t kHoldCarBody = 0x558;
@@ -93,6 +97,8 @@ inline std::atomic<float> g_stop_distance{0};
 inline std::atomic<uint64_t> g_speed_writes{0};
 // The driving car's gear, for the log (1 = neutral, 2 = first).
 inline std::atomic<uint32_t> g_driving_gear{0};
+// Whether the driving car's clutch slipped, for the log.
+inline std::atomic<uint32_t> g_clutch_slipping{0};
 
 // What the start system would change on the driving car, kept from before its step.
 struct StartWrites {
@@ -263,11 +269,16 @@ inline void undo_start_writes(const StartWrites &kept)
     *reinterpret_cast<uint32_t *>(kept.car + kStartValue) = kept.start_value;
     *reinterpret_cast<uint32_t *>(kept.car + kLockBits) &= ~kStartLock;
     g_driving_gear = uint32_t(kept.gears);
+    if (swofty::mem::readable(kept.gear_box + kClutchSlipping, 1)) {
+        g_clutch_slipping = *reinterpret_cast<uint8_t *>(kept.gear_box + kClutchSlipping);
+    }
 }
 
 inline void start_update(void *self, void *context)
 {
-    StartWrites kept = keep_start_writes(car_driving_before_the_start());
+    uintptr_t driving = car_driving_before_the_start();
+    g_clutch_out_car = driving;
+    StartWrites kept = keep_start_writes(driving);
     g_start_update(self, context);
     undo_start_writes(kept);
     uint32_t started = 0;
@@ -342,6 +353,7 @@ inline void let_car_go()
     }
     g_stop_plan.reset();
     g_standing = false;
+    g_clutch_out_car = 0;
 }
 
 } // namespace improved_parc_ferme

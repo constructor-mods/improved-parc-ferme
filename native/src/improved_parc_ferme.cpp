@@ -306,6 +306,7 @@ SWOFTY_ON_LOAD
 {
     keep_rows_open();
     follow_start_system();
+    follow_gear_box();
     follow_lights_wait();
     follow_start_lights();
     read_test_switch();

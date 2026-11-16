@@ -5,7 +5,7 @@
 - New pit lane start: the game drives your car from the garage down the pit lane and stops it at the pit exit.
 - The start lights wait until you stand at the pit exit, so you watch the start from there.
 - You stay held at the pit exit through the start; it opens a few seconds after the last car has passed.
-- Your car keeps its gear on the way down the pit lane, and the clutch prompt only shows once you stand at the line.
+- Your car keeps its gear on the way down the pit lane with the clutch out, so the engine drives it instead of revving on the limiter. The clutch prompt only shows once you stand at the line.
 - On a track where the pit exit isn't known, the old garage start is used.
 
 ## 0.1.3

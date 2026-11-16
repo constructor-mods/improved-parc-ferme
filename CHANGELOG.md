@@ -1,6 +1,7 @@
 # Changelog
 
 ## 0.2.0
+- Works with the F1 25 game update of 16 November 2026 (before, a pit lane start could leave the car stuck in its garage).
 - New pit lane start: the game drives your car from the garage down the pit lane and stops it at the pit exit.
 - The start lights wait until you stand at the pit exit, so you watch the start from there.
 - You stay held at the pit exit through the start; it opens a few seconds after the last car has passed.

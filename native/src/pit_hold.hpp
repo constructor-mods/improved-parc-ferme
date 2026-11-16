@@ -71,8 +71,11 @@ using SetVelocity = void (*)(void *body, const float *velocity);
 constexpr float kSlowFrom = 40.0f;
 // How hard the car slows on the way in (m/s each second): a gentle stop.
 constexpr float kBraking = 5.0f;
-// How quickly the speed is turned down while the car is faster than it should be (each second).
-constexpr float kEaseOff = 3.0f;
+// How quickly the speed is turned down at most while the car is faster than it should be (each second). The
+// engine keeps pulling, so this is stronger than the braking alone.
+constexpr float kEaseOff = 8.0f;
+// The speed the car rolls the last bit to the line at (m/s).
+constexpr float kRollIn = 0.4f;
 // The car counts as at the line this close to it, or standing below this speed near it.
 constexpr float kAtTheLine = 0.5f;
 constexpr float kNearTheLine = 3.0f;
@@ -211,10 +214,14 @@ inline void stop_step(const StopPlan &plan, float step)
             g_standing = true;
             swofty::log("[improved-parc-ferme] stopped at the pit exit (%.1f m from the line, %.1f km/h)", to_go,
                         speed * 3.6f);
-        } else if (to_go < kSlowFrom && speed >= 0) {
-            float allowed = std::sqrt(2.0f * kBraking * std::max(to_go, 0.0f));
+        } else if (to_go < kSlowFrom && speed > 0) {
+            // The fastest the car may go here to stop gently at the line, rolling the last bit.
+            float braking_room = std::max(to_go - kAtTheLine, 0.0f);
+            float allowed = std::sqrt(2.0f * kBraking * braking_room) + kRollIn;
             if (speed > allowed) {
-                scale_speed(plan.car, std::max(0.0f, 1.0f - kEaseOff * step));
+                // Just enough to get back on the curve, never harsher than the ease-off rate.
+                float gentlest = std::max(0.0f, 1.0f - kEaseOff * step);
+                scale_speed(plan.car, std::max(gentlest, allowed / speed));
             }
         }
     }

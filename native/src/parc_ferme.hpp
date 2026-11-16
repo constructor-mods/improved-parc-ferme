@@ -44,6 +44,9 @@ inline std::set<int> g_pit_lane_start;
 // The track the parc ferme above is from.
 inline std::string g_parc_ferme_track;
 inline std::vector<Message> g_messages;
+// When the last breach message showed, so the pit lane start message doesn't say it again.
+inline Clock::time_point g_breach_told_at{};
+constexpr auto kBreachToldFor = std::chrono::seconds(10);
 // Set when a car broke parc ferme and it should be saved.
 inline bool g_parc_ferme_changed = false;
 // Back in a race after the game was closed since qualifying: the setup each car has now is its parc ferme setup.

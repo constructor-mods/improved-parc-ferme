@@ -227,14 +227,17 @@ void frame(double, void *)
     for (const Message &message : messages) {
         if (hud::available()) {
             hud::toast(message.text, message.detail, 5, "generic");
+            g_breach_told_at = Clock::now();
         }
     }
+    // The breach message already says it; the pit lane start message is for a restart or a reload.
+    bool breach_just_told = Clock::now() - g_breach_told_at < kBreachToldFor;
     if (!to_pit_exit.empty()) {
         for (int car : to_pit_exit) {
             start_at_pit_exit(car);
         }
         send_to_garage(pit_lane, to_pit_exit);
-        if (hud::available()) {
+        if (!breach_just_told && hud::available()) {
             hud::toast("Pit lane start", "Parc ferme: wait at the pit exit until the field has passed", 5, "generic");
         }
     }
@@ -250,7 +253,7 @@ void frame(double, void *)
     }
     if (!to_garage.empty()) {
         send_to_garage(pit_lane, to_garage);
-        if (hud::available()) {
+        if (!breach_just_told && hud::available()) {
             hud::toast("Pit lane start", "Parc ferme: setup changed after qualifying", 5, "generic");
         }
     }

@@ -2,11 +2,12 @@
 
 ## 0.2.0
 - Works with the F1 25 game update of 16 November 2026 (before, a pit lane start could leave the car stuck in its garage).
-- New pit lane start: the game drives your car from the garage down the pit lane and stops it at the pit exit.
+- New pit lane start: the game drives your car from the garage down the pit lane and it rolls gently to a stop at the pit exit.
 - The start lights wait until you stand at the pit exit, so you watch the start from there.
 - You stay held at the pit exit through the start; it opens a few seconds after the last car has passed.
 - Your car keeps its gear on the way down the pit lane with the clutch out, so the engine drives it instead of revving on the limiter. The clutch prompt only shows once you stand at the line.
 - On a track where the pit exit isn't known, the old garage start is used.
+- One message when you break parc ferme (which rows you changed), instead of two.
 
 ## 0.1.3
 - Tells Improved Car Setups (0.1.0 or newer) which setup rows are locked, so its setup screen can mark them.

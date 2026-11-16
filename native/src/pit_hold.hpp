@@ -32,8 +32,8 @@ struct StopPlan {
 };
 
 // The game's start system update, in its table (on this game build).
-constexpr uintptr_t kStartUpdateSlot = 0x57f8b28;
-constexpr uintptr_t kStartUpdate = 0x2f4a070;
+constexpr uintptr_t kStartUpdateSlot = 0x57fac68;
+constexpr uintptr_t kStartUpdate = 0x2f4c600;
 using StartUpdate = void (*)(void *self, void *context);
 
 // The start system's own "the race has started" value: 0 until lights out.
@@ -58,8 +58,8 @@ constexpr uintptr_t kChassisBody = 0x340;
 constexpr uintptr_t kBodyState = 0x18;
 constexpr uintptr_t kLinearVelocity = 0x210;
 constexpr uintptr_t kAngularVelocity = 0x220;
-constexpr uintptr_t kSetAngularVelocity = 0x40c2080;
-constexpr uintptr_t kSetLinearVelocity = 0x40c2290;
+constexpr uintptr_t kSetAngularVelocity = 0x40c4650;
+constexpr uintptr_t kSetLinearVelocity = 0x40c4860;
 constexpr uint8_t kSetVelocityStart[] = {0x56, 0x48, 0x83, 0xec, 0x70, 0xc5, 0x78, 0x29, 0x54, 0x24, 0x60, 0xc5};
 using SetVelocity = void (*)(void *body, const float *velocity);
 

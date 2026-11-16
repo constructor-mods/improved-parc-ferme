@@ -16,8 +16,8 @@
 namespace improved_parc_ferme {
 
 // The start lights' update in its table, and the delay before the lights begin (on this game build).
-constexpr uintptr_t kStartLightsUpdateSlot = 0x57e2580 + 0x48;
-constexpr uintptr_t kStartLightsUpdate = 0x2d8fcc0;
+constexpr uintptr_t kStartLightsUpdateSlot = 0x57e46c0 + 0x48;
+constexpr uintptr_t kStartLightsUpdate = 0x2d92250;
 constexpr uintptr_t kLightsDelay = 0xdf0;
 // The delay is kept at least this long while the lights wait.
 constexpr float kDelayKept = 0.25f;

@@ -16,7 +16,7 @@ namespace improved_parc_ferme {
 // The game's rule for when the HUD may show: a list of pit states it shows in, and the garage isn't one of them (on
 // this game build). While a car waits in its garage at the race start, the garage is added to that list, so the game
 // never hides the HUD.
-constexpr uintptr_t kHudPitStates = 0x2d66129;
+constexpr uintptr_t kHudPitStates = 0x2d686b9;
 constexpr uint8_t kHudPitStatesStart[] = {0xb9, 0xfe, 0xe1, 0x01, 0x00};
 constexpr uintptr_t kHudPitStatesByte = 2;
 constexpr uint8_t kWithoutGarage = 0xe1;
@@ -52,9 +52,9 @@ inline void hud_stays_in_garage(bool stay)
 }
 
 // The game's reasons to hide the HUD, one bit each, and its "show or hide the HUD now" call (on this game build).
-constexpr uintptr_t kHudHideReasons = 0x604e900;
+constexpr uintptr_t kHudHideReasons = 0x6050900;
 constexpr uint32_t kHiddenInGarage = 1;
-constexpr uintptr_t kApplyHud = 0x2c74200;
+constexpr uintptr_t kApplyHud = 0x2c76790;
 constexpr uint8_t kApplyHudStart[] = {0x56, 0x57, 0x53, 0x48, 0x83, 0xec, 0x30, 0x48, 0x89, 0xce, 0x83, 0x39};
 using ApplyHud = void (*)(uint32_t *reasons);
 

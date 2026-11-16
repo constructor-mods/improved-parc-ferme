@@ -14,7 +14,7 @@ namespace improved_parc_ferme {
 using swofty::log;
 
 // Where the game decides between "lock the rows" and "clear the lock", on this game build.
-constexpr uintptr_t kLockChoice = 0xc0ac05;
+constexpr uintptr_t kLockChoice = 0xc0b545;
 constexpr uint8_t kLockChoiceBytes[] = {0x80, 0x7a, 0x14, 0x00, 0x0f, 0x84, 0x99, 0x00, 0x00, 0x00};
 // Always take the "clear the lock" way.
 constexpr uint8_t kAlwaysClear[] = {0xe9, 0x9a, 0x00, 0x00, 0x00, 0x90};

@@ -27,12 +27,12 @@ constexpr uint32_t kOnTrack = 1;
 constexpr auto kDriveOutDelay = std::chrono::seconds(15);
 
 // The game's "car wants to leave its garage" call, the one Go to Track uses (a jump on this game build).
-constexpr uintptr_t kWantsToLeaveGarage = 0x34d1350;
+constexpr uintptr_t kWantsToLeaveGarage = 0x34d38e0;
 constexpr uint8_t kJump = 0xe9;
 using WantsToLeaveGarage = void (*)(void *pit_lane, uint8_t car, uint32_t flag);
 
 // The game's own "move the car into its garage".
-constexpr uintptr_t kTeleportToGarage = 0x34d17f0;
+constexpr uintptr_t kTeleportToGarage = 0x34d3d80;
 constexpr uint8_t kTeleportToGarageStart[] = {0x41, 0x57, 0x41, 0x56, 0x41, 0x55, 0x41, 0x54, 0x56, 0x57, 0x53, 0x48};
 using TeleportToGarage = bool (*)(void *pit_lane, uint8_t car);
 
@@ -41,6 +41,12 @@ inline void send_to_garage(void *pit_lane, const std::vector<int> &cars)
 {
     auto *call = reinterpret_cast<uint8_t *>(swofty::api->module_base() + kTeleportToGarage);
     bool known = std::memcmp(call, kTeleportToGarageStart, sizeof kTeleportToGarageStart) == 0;
+    auto *leave = reinterpret_cast<uint8_t *>(swofty::api->module_base() + kWantsToLeaveGarage);
+    if (*leave != kJump) {
+        // The car couldn't drive out again: it starts from the grid instead.
+        swofty::log("[improved-parc-ferme] this game build is not supported: the car starts on the grid");
+        return;
+    }
     for (int car : cars) {
         swofty::log("[improved-parc-ferme] car %d starts from the pit lane: to its garage", car);
         // The race is on: the HUD stays until the end of the race, also in the garage.

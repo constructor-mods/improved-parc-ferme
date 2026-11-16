@@ -10,14 +10,14 @@
 namespace improved_parc_ferme {
 
 // The game's options and its "find an option by name" call (on this game build).
-constexpr uintptr_t kOptionsStore = 0x6079258;
+constexpr uintptr_t kOptionsStore = 0x607b258;
 constexpr uintptr_t kOptionsMap = 0x270;
 constexpr uintptr_t kOptionsStart = 0x288;
 constexpr uintptr_t kOptionsEnd = 0x290;
 constexpr uintptr_t kOptionEntrySize = 0x10;
 constexpr uintptr_t kOptionInEntry = 0x8;
 constexpr uintptr_t kOptionGet = 0x10;
-constexpr uintptr_t kFindOption = 0x2b5dfd0;
+constexpr uintptr_t kFindOption = 0x2b60560;
 constexpr uint8_t kFindOptionStart[] = {0x41, 0x57, 0x41, 0x56, 0x41, 0x55, 0x41, 0x54, 0x56, 0x57, 0x55, 0x53};
 using FindOption = uint64_t (*)(void *map, const char **name);
 using GetOption = uint8_t (*)(void *option, void *context);

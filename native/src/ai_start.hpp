@@ -14,11 +14,11 @@
 namespace improved_parc_ferme {
 
 // The driver's "before the lights" and "at the lights" steps and the id of its "racing" step (on this game build).
-constexpr uintptr_t kBeforeLightsStepSlot = 0x5638b50 + 0x18;
-constexpr uintptr_t kBeforeLightsStep = 0x669140;
-constexpr uintptr_t kAtLightsStepSlot = 0x5638890 + 0x18;
-constexpr uintptr_t kAtLightsStep = 0x6682b0;
-constexpr uintptr_t kRacingStepId = 0x604843c;
+constexpr uintptr_t kBeforeLightsStepSlot = 0x563ab50 + 0x18;
+constexpr uintptr_t kBeforeLightsStep = 0x669180;
+constexpr uintptr_t kAtLightsStepSlot = 0x563a890 + 0x18;
+constexpr uintptr_t kAtLightsStep = 0x6682f0;
+constexpr uintptr_t kRacingStepId = 0x604a43c;
 using DriverStep = uint32_t (*)(void *step, float seconds, void *driver);
 
 inline DriverStep g_before_lights_step = nullptr;

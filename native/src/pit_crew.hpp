@@ -15,7 +15,7 @@
 namespace improved_parc_ferme {
 
 // The game's pit crews: a list of crews, one per garage, each knowing its garage's two cars (on this game build).
-constexpr uintptr_t kPitStops = 0x6045ed8;
+constexpr uintptr_t kPitStops = 0x6047ed8;
 constexpr uintptr_t kPitCrews = 0x28;
 constexpr uintptr_t kCrewListStart = 0x20;
 constexpr uintptr_t kCrewListEnd = 0x28;
@@ -26,8 +26,8 @@ constexpr uintptr_t kSecondCar = 0xc1;
 constexpr int kMostCrews = 32;
 
 // The game's own hide and show calls for a pit crew.
-constexpr uintptr_t kHideCrew = 0x355140;
-constexpr uintptr_t kShowCrew = 0x3b9410;
+constexpr uintptr_t kHideCrew = 0x355180;
+constexpr uintptr_t kShowCrew = 0x3b9450;
 constexpr uint8_t kHideCrewStart[] = {0x41, 0x57, 0x41, 0x56, 0x41, 0x55, 0x41, 0x54, 0x56, 0x57, 0x53, 0x48};
 constexpr uint8_t kShowCrewStart[] = {0x56, 0x57, 0x48, 0x83, 0xec, 0x28, 0x80, 0xb9, 0x50, 0x04, 0x00, 0x00};
 using HideCrew = void (*)(void *crew, uint8_t everything);
@@ -87,8 +87,8 @@ inline void hide_crew(int car)
 
 // The game's "show every pit crew", which it calls every frame a car is near the pit lane (a jump on this game
 // build). While a car waits in its garage it returns at once, so the hidden crew stays hidden.
-constexpr uintptr_t kShowAllCrews = 0x3c0590;
-constexpr uint8_t kShowAllCrewsStart[] = {0xe9, 0x3b, 0x81, 0xa0, 0x07};
+constexpr uintptr_t kShowAllCrews = 0x3c05d0;
+constexpr uint8_t kShowAllCrewsStart[] = {0xe9, 0x8b, 0xd8, 0x8e, 0x07};
 constexpr uint8_t kReturn = 0xc3;
 
 inline std::atomic<bool> g_crews_stay_hidden{false};

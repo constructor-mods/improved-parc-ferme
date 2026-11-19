@@ -6,6 +6,7 @@ Parc fermé the way it works in real F1. Got your setup wrong in qualifying? You
 - The setup screen doesn't grey them out any more. Change one and a message tells you which rows you changed.
 - At the race start the game drives your car from its **garage** down the pit lane and stops it at the **pit exit**. The start lights wait until you stand there.
 - You stay held at the pit exit while the field starts. A few seconds after the last car has passed, the pit exit opens and you join the race.
+- With the formation lap on, you do the formation lap with the field; the pit lane start happens once the grid has formed up for the start lights.
 - On a track where the pit exit isn't known, your car waits in its garage instead and drives out once the field has passed.
 - The pit lane start doesn't count as your pit stop.
 

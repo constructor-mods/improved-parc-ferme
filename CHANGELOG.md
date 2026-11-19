@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.2.2
+- Works with the formation lap on: you do the formation lap with the field, then the pit lane start happens at the start lights (before, the pit lane start was skipped after a formation lap).
+
 ## 0.2.1
 - After a red flag the race restarts from the grid for everyone, the pit lane starter too (before, you were sent to the pit lane again).
 

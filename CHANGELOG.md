@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.2.1
+- After a red flag the race restarts from the grid for everyone, the pit lane starter too (before, you were sent to the pit lane again).
+
 ## 0.2.0
 - Works with the F1 25 game update of 16 November 2026 (before, a pit lane start could leave the car stuck in its garage).
 - New pit lane start: the game drives your car from the garage down the pit lane and it rolls gently to a stop at the pit exit.

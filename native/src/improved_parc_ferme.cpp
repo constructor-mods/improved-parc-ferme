@@ -179,7 +179,8 @@ void frame(double, void *)
         }
         messages.swap(g_messages);
         racing = g_phase == Phase::racing;
-        if (racing && pit_lane) {
+        // After a red flag the race restarts from the grid: no pit lane start then.
+        if (racing && pit_lane && g_race_starts <= 1) {
             auto now = Clock::now();
             for (int car : g_pit_lane_start) {
                 if (g_in_garage.count(car) || g_at_pit_exit.count(car)) {
@@ -341,6 +342,7 @@ SWOFTY_REGISTER
         } else {
             g_weekend_track = name;
         }
+        g_race_starts = 0;
         g_test_waiting = g_test_car >= 0;
         g_test_since = Clock::now();
         // The session ended and this one has the same number (the race loaded again): follow it again.
@@ -372,8 +374,13 @@ SWOFTY_REGISTER
         stop_waiting();
         new_lights();
         std::lock_guard<std::mutex> lock(g_mutex);
+        g_race_starts += 1;
         g_phase = Phase::racing;
-        g_race_started = Clock::now();
+        if (g_race_starts == 1) {
+            g_race_started = Clock::now();
+        } else {
+            log("[improved-parc-ferme] race restarted after a red flag: every car starts from the grid");
+        }
         g_in_garage.clear();
         g_driven_out.clear();
         g_at_pit_exit.clear();

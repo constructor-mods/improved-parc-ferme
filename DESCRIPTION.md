@@ -15,6 +15,7 @@ Parc fermé the way it works in real F1. Got your setup wrong in qualifying? You
 ### Restarts
 - Restart qualifying and parc fermé starts over.
 - Restart the race and the pit lane start stays.
+- A red flag restart is from the grid for everyone, in race order, the pit lane starter too.
 - Quit the game between qualifying and the race, or quit the race and load it again, and parc fermé is still there.
 
 ### Works with

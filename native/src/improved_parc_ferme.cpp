@@ -179,8 +179,9 @@ void frame(double, void *)
         }
         messages.swap(g_messages);
         racing = g_phase == Phase::racing;
-        // After a red flag the race restarts from the grid: no pit lane start then.
-        if (racing && pit_lane && g_race_starts <= 1) {
+        // The pit lane start waits for the start lights (after a formation lap they come at the second start). After
+        // a red flag the race restarts from the grid: no pit lane start then.
+        if (racing && pit_lane && !g_restart_from_grid && lights_coming()) {
             auto now = Clock::now();
             for (int car : g_pit_lane_start) {
                 if (g_in_garage.count(car) || g_at_pit_exit.count(car)) {
@@ -343,6 +344,8 @@ SWOFTY_REGISTER
             g_weekend_track = name;
         }
         g_race_starts = 0;
+        g_restart_from_grid = false;
+        new_session_lights();
         g_test_waiting = g_test_car >= 0;
         g_test_since = Clock::now();
         // The session ended and this one has the same number (the race loaded again): follow it again.
@@ -369,18 +372,21 @@ SWOFTY_REGISTER
             g_pit_lane_start.clear();
         }
     });
-    // A restarted race fires race.start again, and the pit lane start is served again.
+    // race.start comes again for the lights after a formation lap, and for the restart after a red flag.
     events::on("race.start").after([](std::span<const std::byte>, const events::Context &) {
         stop_waiting();
-        new_lights();
         std::lock_guard<std::mutex> lock(g_mutex);
         g_race_starts += 1;
         g_phase = Phase::racing;
+        g_restart_from_grid = restart_after_red_flag(g_race_starts);
         if (g_race_starts == 1) {
             g_race_started = Clock::now();
-        } else {
+        } else if (g_restart_from_grid) {
             log("[improved-parc-ferme] race restarted after a red flag: every car starts from the grid");
+        } else {
+            log("[improved-parc-ferme] race start %d: the grid has formed up after the formation lap", g_race_starts);
         }
+        new_lights(!g_restart_from_grid && !g_pit_lane_start.empty());
         g_in_garage.clear();
         g_driven_out.clear();
         g_at_pit_exit.clear();

@@ -32,12 +32,26 @@ inline std::atomic<double> g_lights_waited{0};
 // The lights have begun since the race started: they are never held again.
 inline std::atomic<bool> g_lights_begun{false};
 inline std::atomic<bool> g_lights_delay_logged{false};
+// The start lights are on their way since the race started. With a formation lap the race starts twice: first for
+// the formation lap (no lights), then again once the grid has formed up (the lights).
+inline std::atomic<bool> g_lights_coming{false};
+// The lights have begun once already in this session: a later start is a restart after a red flag.
+inline std::atomic<bool> g_lights_begun_in_session{false};
+// A car starts from the pit lane at these lights: they wait for it from their very first step.
+inline std::atomic<bool> g_lights_wait_due{false};
+
+inline void hold_lights();
 
 inline void *start_lights_update(void *state, void *route, double seconds)
 {
     auto *delay = reinterpret_cast<float *>(reinterpret_cast<uintptr_t>(state) + kLightsDelay);
     if (!g_lights_begun.load() && swofty::mem::readable(reinterpret_cast<uintptr_t>(delay), sizeof(float))) {
         if (!g_lights_delay_logged.exchange(true)) {
+            // After a formation lap the lights begin at once, so the wait starts here, before the car is sent.
+            if (g_lights_wait_due.exchange(false)) {
+                hold_lights();
+            }
+            g_lights_coming = true;
             swofty::log("[improved-parc-ferme] start lights: %.2f s before the lights%s", *delay,
                         g_lights_wait.load() ? ", waiting for the pit lane starter" : "");
         }
@@ -54,6 +68,7 @@ inline void *start_lights_update(void *state, void *route, double seconds)
         }
         if (!g_lights_wait.load() && *delay <= 0) {
             g_lights_begun = true;
+            g_lights_begun_in_session = true;
             swofty::log("[improved-parc-ferme] start lights begin (held %.1f s)", g_lights_waited.load());
         }
     }
@@ -80,12 +95,38 @@ inline void follow_start_lights()
     VirtualProtect(slot, sizeof(uintptr_t), old_protect, &old_protect);
 }
 
-// A race start: the lights may wait again.
-inline void new_lights()
+// A race start: the lights may wait again. A car starting from the pit lane makes them wait from the start.
+inline void new_lights(bool wait_due)
 {
     g_lights_begun = false;
     g_lights_delay_logged = false;
+    g_lights_coming = false;
     g_lights_waited = 0;
+    g_lights_wait_due = wait_due;
+}
+
+// A new session: its first start is never a restart.
+inline void new_session_lights()
+{
+    g_lights_begun_in_session = false;
+    g_lights_coming = false;
+    g_lights_wait_due = false;
+}
+
+// True once the start lights are on their way. Without our view of the lights, every race start counts.
+inline bool lights_coming()
+{
+    return g_start_lights_update == nullptr || g_lights_coming.load();
+}
+
+// True when this race start is a restart after a red flag: the lights already went once in this session. Without our
+// view of the lights, any start after the first counts as a restart.
+inline bool restart_after_red_flag(int race_starts)
+{
+    if (g_start_lights_update == nullptr) {
+        return race_starts > 1;
+    }
+    return g_lights_begun_in_session.load();
 }
 
 inline void hold_lights()

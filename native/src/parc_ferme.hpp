@@ -51,9 +51,11 @@ constexpr auto kBreachToldFor = std::chrono::seconds(10);
 inline bool g_parc_ferme_changed = false;
 // Back in a race after the game was closed since qualifying: the setup each car has now is its parc ferme setup.
 inline bool g_take_setup_now = false;
-// How many times the race has started in this session. A second start is the restart after a red flag: every car
-// lines up on the grid in its race order, the pit lane starter too.
+// How many times the race has started in this session (a formation lap counts as a start too).
 inline int g_race_starts = 0;
+// This start is the restart after a red flag: every car lines up on the grid in its race order, the pit lane starter
+// too.
+inline bool g_restart_from_grid = false;
 
 // A new qualifying: every car is out of parc ferme until it leaves the pits.
 inline void start_qualifying()

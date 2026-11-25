@@ -4,6 +4,7 @@
 #pragma once
 #include "ai_start.hpp"
 #include "pit_exit.hpp"
+#include "parked_timer.hpp"
 #include "pit_hold.hpp"
 #include "start_lights.hpp"
 #include "start_prompt.hpp"
@@ -82,6 +83,8 @@ struct HoldNews {
     bool free_to_go = false;
     // The car is still in its garage at lights out: send it out again.
     int drive_out_again = -1;
+    // The car waiting at the pit exit this frame.
+    int waiting = -1;
 };
 
 // True when every racing car is past the pit exit. A car counts once it has moved off from where it was at lights
@@ -137,6 +140,7 @@ inline HoldNews hold_at_pit_exit()
         return news;
     }
     Held &held = *g_held;
+    news.waiting = held.car;
     auto now = ExitClock::now();
     std::map<int, uintptr_t> handles = car_handles();
     static ExitClock::time_point next_log{};
@@ -208,6 +212,7 @@ inline HoldNews hold_at_pit_exit()
         stop_skipping_lights_wait();
         start_prompt_as_normal();
         news.free_to_go = true;
+        news.waiting = -1;
     }
     return news;
 }

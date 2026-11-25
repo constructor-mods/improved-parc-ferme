@@ -245,6 +245,9 @@ void frame(double, void *)
     }
     if (racing) {
         HoldNews news = hold_at_pit_exit();
+        if (news.waiting >= 0) {
+            keep_parked_timer_full(news.waiting);
+        }
         if (news.drive_out_again >= 0) {
             log("[improved-parc-ferme] car %d still in its garage at lights out: drives out now", news.drive_out_again);
             drive_out(pit_lane, {news.drive_out_again});

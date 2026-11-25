@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.2.3
+- No more disqualification for "parked for too long" while you wait at the pit exit. Once the pit exit opens you get the game's normal time to pull away.
+
 ## 0.2.2
 - Works with the formation lap on: you do the formation lap with the field, then the pit lane start happens at the start lights (before, the pit lane start was skipped after a formation lap).
 

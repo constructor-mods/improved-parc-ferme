@@ -76,7 +76,7 @@ inline void keep_parked_timer_full(int car)
     auto now = std::chrono::steady_clock::now();
     if (now >= next_log) {
         next_log = now + kParkedLogEvery;
-        swofty::log("[improved-parc-ferme] car %d: parked timer %.2f s, kept full", car, left);
+        swofty::log("[improved-parc-ferme] car %d: parked timer %.3f s, kept full", car, left);
     }
     *reinterpret_cast<float *>(timer) = kParkedTimerFull;
 }

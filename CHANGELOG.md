@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.2.4
+- Marked as not working with Manual Pit Lane: both take over your car in the pit lane, so the pit lane start broke with it on. The launcher now asks you to turn one of them off.
+
 ## 0.2.3
 - No more disqualification for "parked for too long" while you wait at the pit exit. Once the pit exit opens you get the game's normal time to pull away.
 

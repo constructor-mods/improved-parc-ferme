@@ -2,7 +2,7 @@
   "schema_version": 1,
   "id": "msyeett.improved-parc-ferme",
   "name": "Improved Parc Ferme",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "author": "msyeett",
   "description": "Parc ferme like the real rule: change a locked setup row after qualifying and you start the race from the pit lane. Offline only.",
   "license": "MIT",
@@ -22,6 +22,11 @@
     {
       "id": "swofty.core",
       "version": ">=0.1.0"
+    }
+  ],
+  "conflicts": [
+    {
+      "id": "kizi.pitlane"
     }
   ],
   "operations": {

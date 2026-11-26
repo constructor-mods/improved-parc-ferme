@@ -22,6 +22,9 @@ Parc fermé the way it works in real F1. Got your setup wrong in qualifying? You
 ### Works with
 - **Improved Car Setups** (0.1.0 or newer): its setup screen marks the locked rows and warns before you break parc fermé.
 
+### Doesn't work with
+- **Manual Pit Lane**: both take over your car in the pit lane. The launcher asks you to turn one of them off.
+
 ### Needs
 - Swofty Launcher 1.8.36 or newer.
 - A Grand Prix with qualifying on (Weekend Structure → Qualifying Format).
